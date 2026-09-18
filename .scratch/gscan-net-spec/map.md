@@ -6,6 +6,8 @@
 
 一份可交给实现的规格：GsCan.NET 是 .NET Standard 2.0 上的现代 gs_usb 主机库（本仓库就是这个库）。Windows 只封装 Schildkroet 的 candle.dll（P/Invoke + 现代 C# 外观），不自写 USB 栈。FlintCAN-FD 为第一等设备（双通道、CAN FD、硬件时间戳），并兼容其他标准 gs_usb 设备。实现本身不在这张地图里。
 
+Handoff：[spec.md](spec.md)（`ready-for-agent`）。
+
 ## Notes
 
 - 领域：gs_usb 主机库（Windows / candle.dll）
