@@ -1,7 +1,7 @@
 # 09 grilling：candle.dll 随 NuGet 再分发
 
 Type: grilling
-Status: claimed
+Status: resolved
 Blocked by: 01
 
 ## Question
@@ -20,3 +20,17 @@ candle.dll 怎么进包、进谁的包？「01 research：Schildkroet candle.dll
 ## 产出
 
 一条可写进规格的 native 分发与加载策略。
+
+## Answer
+
+2026-09-19 grilling，Q1 A。
+
+规格条款：
+
+- **一个 NuGet `GsCan`**，内嵌从 Schildkroet CANgaroo `api/` **自行编译**的动态库（无官方预编译资产）。不把 GPL-2 的 CANgaroo 应用编进包。
+- **布局**：`runtimes/win-x86/native/` 与 `runtimes/win-x64/native/`，并提供 `.targets` 把 native 拷到输出目录旁，供 .NET Framework 与 `DllImport` 使用。
+- **加载**：默认按文件名搜索。公共面不提供路径配置，不出现 Candle 名。
+- **LGPL-3.0-or-later**：动态链接、可替换；包内附 GPL/LGPL 文本；提供对应 `api/` 源码或等价获取方式。
+- 输出文件名（`candle.dll` vs 其他）留给实现。
+
+`CONTEXT.md` 无新术语。

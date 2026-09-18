@@ -27,6 +27,7 @@
 - [「05 grilling：仅 netstandard2.0 还是多目标」](issues/05-grilling-target-frameworks.md) — 只 `netstandard2.0`；公共面不许现代 TFM 专属成员；以后加 net10 另开票
 - [「07 prototype：公共 API 外观草稿」](issues/07-prototype-public-api.md) — 工作外观：Device 拥有 Channel；TryRead 超时轮询；一个 CanFrame+Kind；整数 bitrate；资产在 `prototype/public-api`
 - [「08 grilling：错误模型与 TX echo / Bus-off 主机语义」](issues/08-grilling-error-and-echo.md) — 配置抛异常、总线走帧；Echo=FIFO 且≠上总线；Stop 静默丢未完成 Send；不暴露 State/恢复；Overflow 是标志、BERR 是 Error 帧
+- [「09 grilling：candle.dll 随 NuGet 再分发」](issues/09-grilling-native-packaging.md) — 单包 `GsCan` 内嵌自建动态库；RID + `.targets` 旁路拷贝；默认按文件名加载；LGPL 声明与对应源码
 
 ## Not yet specified
 
