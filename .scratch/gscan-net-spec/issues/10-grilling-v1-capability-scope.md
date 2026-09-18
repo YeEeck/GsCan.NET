@@ -1,7 +1,7 @@
 # 10 grilling：第一版规格的 gs_usb 能力范围
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 06
 
 ## Question
