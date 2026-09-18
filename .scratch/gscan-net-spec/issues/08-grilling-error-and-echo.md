@@ -1,7 +1,7 @@
 # 08 grilling：错误模型与 TX echo / Bus-off 主机语义
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 01, 02, 06
 
 ## Question
