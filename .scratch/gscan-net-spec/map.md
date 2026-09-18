@@ -19,6 +19,7 @@
 ## Decisions so far
 
 <!-- 索引：每行一个已关闭 ticket：标题 + 链接 + 一句话答案 -->
+- [「02 research：gs_usb 线协议与 FlintCAN-FD 主机可见子集」](issues/02-research-gs-usb-protocol.md) — 线协议在内核 `gs_usb.c`（无独立 uapi）；FlintCAN-FD 可见双通道 FD+HW ts+IDENTIFY+BERR+GET_STATE+TDC+BUS_OFF_RECOVERY，无端接/滤波；TX echo≠上总线，Channel stop 丢 Host TX 无 echo
 
 ## Not yet specified
 
