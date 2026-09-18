@@ -23,6 +23,7 @@
 - [「02 research：gs_usb 线协议与 FlintCAN-FD 主机可见子集」](issues/02-research-gs-usb-protocol.md) — 线协议在内核 `gs_usb.c`（无独立 uapi）；FlintCAN-FD 可见双通道 FD+HW ts+IDENTIFY+BERR+GET_STATE+TDC+BUS_OFF_RECOVERY，无端接/滤波；TX echo≠上总线，Channel stop 丢 Host TX 无 echo
 - [「03 research：现有 candle/gs_usb 的 .NET 封装」](issues/03-research-existing-dotnet-wrappers.md) — 无可用 .NET 依赖；Candle.NET 仅作对照（无 FD、停更）；Schildkroet 无 C# 包装；公共界面从零设计
 - [「06 research：candle.dll 对 gs_usb 的能力缺口」](issues/06-research-candle-vs-gsusb-gap.md) — FlintCAN 数据面 candle 基本覆盖；IDENTIFY/TDC/BUS_OFF_RECOVERY/自选 echo_id/BERR 模式开关 DLL 无导出；GET_STATE 导出但 BREQ 号与现协议不符
+- [「04 grilling：程序集、NuGet 与核心类型命名」](issues/04-grilling-naming.md) — NuGet/程序集/命名空间均为 `GsCan`；类型 `Device`/`Channel`/`CanFrame`；公共名不出现 Candle
 
 ## Not yet specified
 
