@@ -1,7 +1,7 @@
 # 09 grilling：candle.dll 随 NuGet 再分发
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: 01
 
 ## Question
