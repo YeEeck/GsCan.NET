@@ -26,6 +26,7 @@
 - [「04 grilling：程序集、NuGet 与核心类型命名」](issues/04-grilling-naming.md) — NuGet/程序集/命名空间均为 `GsCan`；类型 `Device`/`Channel`/`CanFrame`；公共名不出现 Candle
 - [「05 grilling：仅 netstandard2.0 还是多目标」](issues/05-grilling-target-frameworks.md) — 只 `netstandard2.0`；公共面不许现代 TFM 专属成员；以后加 net10 另开票
 - [「07 prototype：公共 API 外观草稿」](issues/07-prototype-public-api.md) — 工作外观：Device 拥有 Channel；TryRead 超时轮询；一个 CanFrame+Kind；整数 bitrate；资产在 `prototype/public-api`
+- [「08 grilling：错误模型与 TX echo / Bus-off 主机语义」](issues/08-grilling-error-and-echo.md) — 配置抛异常、总线走帧；Echo=FIFO 且≠上总线；Stop 静默丢未完成 Send；不暴露 State/恢复；Overflow 是标志、BERR 是 Error 帧
 
 ## Not yet specified
 
