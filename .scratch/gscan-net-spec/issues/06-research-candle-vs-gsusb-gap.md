@@ -1,7 +1,7 @@
 # 06 research：candle.dll 对 gs_usb 的能力缺口
 
 Type: research
-Status: open
+Status: claimed
 Blocked by: 01, 02
 
 ## Question
