@@ -29,10 +29,11 @@
 - [「08 grilling：错误模型与 TX echo / Bus-off 主机语义」](issues/08-grilling-error-and-echo.md) — 配置抛异常、总线走帧；Echo=FIFO 且≠上总线；Stop 静默丢未完成 Send；不暴露 State/恢复；Overflow 是标志、BERR 是 Error 帧
 - [「09 grilling：candle.dll 随 NuGet 再分发」](issues/09-grilling-native-packaging.md) — 单包 `GsCan` 内嵌自建动态库；RID + `.targets` 旁路拷贝；默认按文件名加载；LGPL 声明与对应源码
 - [「10 grilling：第一版规格的 gs_usb 能力范围」](issues/10-grilling-v1-capability-scope.md) — v1：双通道 + CAN FD + 硬件时间戳 + Echo/Overflow/Error 帧 + 模式位；IDENTIFY/TDC/端接/滤波/State/恢复/自选 echo_id 本图范围外
+- [「11 grilling：剩余雾如何收口」](issues/11-grilling-remaining-fog.md) — TryRead-only；整数 bitrate；无句柄/无热插拔事件；Send+TryRead 可跨线程；验收=实机 FlintCAN-FD 走通工作外观
 
 ## Not yet specified
 
-- （已收成「11 grilling：剩余雾如何收口」，本票关闭前不再单列）
+（空。决策齐，可汇编 handoff 规格。）
 
 ## Out of scope
 
@@ -46,3 +47,8 @@
 - IDENTIFY、TDC、软件端接、硬件滤波——candle.dll 无导出（见 10）
 - GET_STATE / `Channel.State`、BUS_OFF_RECOVERY——08 已切且 DLL 缺口（见 10）
 - 自选 echo_id、BERR 模式开关——DLL 无导出（见 10）
+- 事件 / `Channel<T>` / `IObservable`——v1 只有 `TryRead`（见 11）
+- 原始 bit timing——只有整数 bitrate（见 11）
+- 底层 candle 句柄——公共面不出现（见 11）
+- 与 python-can / TSMaster 行为对齐（见 11）
+- 模拟设备、对照 python-can——留给实现会话（见 11）
