@@ -1,7 +1,7 @@
 # 03 research：现有 candle/gs_usb 的 .NET 封装
 
 Type: research
-Status: open
+Status: claimed
 Blocked by: （无）
 
 ## Question

@@ -1,7 +1,7 @@
 # 01 research：Schildkroet candle.dll 身份与 API 清单
 
 Type: research
-Status: open
+Status: claimed
 Blocked by: （无）
 
 ## Question

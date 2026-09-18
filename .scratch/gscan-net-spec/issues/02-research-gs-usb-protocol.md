@@ -1,7 +1,7 @@
 # 02 research：gs_usb 线协议与 FlintCAN-FD 主机可见子集
 
 Type: research
-Status: open
+Status: claimed
 Blocked by: （无）
 
 ## Question
