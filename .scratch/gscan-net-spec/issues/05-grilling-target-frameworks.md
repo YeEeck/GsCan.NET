@@ -1,7 +1,7 @@
 # 05 grilling：仅 netstandard2.0 还是多目标
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: （无）
 
 ## Question
