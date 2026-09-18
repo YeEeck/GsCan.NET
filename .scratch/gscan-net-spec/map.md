@@ -19,6 +19,7 @@
 ## Decisions so far
 
 <!-- 索引：每行一个已关闭 ticket：标题 + 链接 + 一句话答案 -->
+- [「03 research：现有 candle/gs_usb 的 .NET 封装」](issues/03-research-existing-dotnet-wrappers.md) — 无可用 .NET 依赖；Candle.NET 仅作对照（无 FD、停更）；Schildkroet 无 C# 包装；公共界面从零设计
 
 ## Not yet specified
 
