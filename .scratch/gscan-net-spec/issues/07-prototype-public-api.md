@@ -1,7 +1,7 @@
 # 07 prototype：公共 API 外观草稿
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: 01, 02, 03, 06
 
 ## Question
