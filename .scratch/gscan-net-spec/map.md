@@ -32,13 +32,7 @@
 
 ## Not yet specified
 
-- 接收模型是否还要事件 / `Channel<T>` / `IObservable`（工作外观已是 `Channel.TryRead` 超时轮询）
-- 是否还要暴露原始 bit timing（工作外观已是整数 bitrate / data bitrate）
-- 是否向高级用户暴露底层 candle 句柄
-- 热插拔
-- 与 python-can、TSMaster 的行为对齐做到哪一层
-- 测试策略（实机 FlintCAN-FD / 模拟 Device / 对照 python-can）
-- 线程模型与同步上下文
+- （已收成「11 grilling：剩余雾如何收口」，本票关闭前不再单列）
 
 ## Out of scope
 
