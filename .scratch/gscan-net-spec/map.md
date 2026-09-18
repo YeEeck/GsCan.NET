@@ -25,11 +25,12 @@
 - [「06 research：candle.dll 对 gs_usb 的能力缺口」](issues/06-research-candle-vs-gsusb-gap.md) — FlintCAN 数据面 candle 基本覆盖；IDENTIFY/TDC/BUS_OFF_RECOVERY/自选 echo_id/BERR 模式开关 DLL 无导出；GET_STATE 导出但 BREQ 号与现协议不符
 - [「04 grilling：程序集、NuGet 与核心类型命名」](issues/04-grilling-naming.md) — NuGet/程序集/命名空间均为 `GsCan`；类型 `Device`/`Channel`/`CanFrame`；公共名不出现 Candle
 - [「05 grilling：仅 netstandard2.0 还是多目标」](issues/05-grilling-target-frameworks.md) — 只 `netstandard2.0`；公共面不许现代 TFM 专属成员；以后加 net10 另开票
+- [「07 prototype：公共 API 外观草稿」](issues/07-prototype-public-api.md) — 工作外观：Device 拥有 Channel；TryRead 超时轮询；一个 CanFrame+Kind；整数 bitrate；资产在 `prototype/public-api`
 
 ## Not yet specified
 
-- 接收模型（阻塞轮询 / 事件 / `Channel<T>` / `IObservable`）
-- 位时序怎么交给调用方（直接 bitrate vs 原始 bit timing）
+- 接收模型是否还要事件 / `Channel<T>` / `IObservable`（工作外观已是 `Channel.TryRead` 超时轮询）
+- 是否还要暴露原始 bit timing（工作外观已是整数 bitrate / data bitrate）
 - 是否向高级用户暴露底层 candle 句柄
 - 热插拔
 - 与 python-can、TSMaster 的行为对齐做到哪一层
