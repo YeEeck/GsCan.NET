@@ -1,7 +1,7 @@
 # 05 grilling：仅 netstandard2.0 还是多目标
 
 Type: grilling
-Status: claimed
+Status: resolved
 Blocked by: （无）
 
 ## Question
@@ -19,3 +19,13 @@ Blocked by: （无）
 ## 产出
 
 锁定的 TFM 列表，以及「公共界面是否允许只在现代 TFM 出现的成员」。
+
+## Answer
+
+2026-09-18 grilling，按推荐。
+
+- **TFM：只 `netstandard2.0`。** 公共界面必须能在这一份上表达；P/Invoke 走 `DllImport`。
+- **不存在「仅现代 TFM 的公共成员」。** 没有第二套 TFM，这条自然关闭。
+- 不改写目的地。以后若要加 `net10.0` 资产，另开票，且不得借机往公共面塞 netstandard2.0 表达不了的成员。
+
+`CONTEXT.md` 无新术语（这是编译目标，不是领域词）。

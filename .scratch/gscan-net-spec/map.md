@@ -24,6 +24,7 @@
 - [「03 research：现有 candle/gs_usb 的 .NET 封装」](issues/03-research-existing-dotnet-wrappers.md) — 无可用 .NET 依赖；Candle.NET 仅作对照（无 FD、停更）；Schildkroet 无 C# 包装；公共界面从零设计
 - [「06 research：candle.dll 对 gs_usb 的能力缺口」](issues/06-research-candle-vs-gsusb-gap.md) — FlintCAN 数据面 candle 基本覆盖；IDENTIFY/TDC/BUS_OFF_RECOVERY/自选 echo_id/BERR 模式开关 DLL 无导出；GET_STATE 导出但 BREQ 号与现协议不符
 - [「04 grilling：程序集、NuGet 与核心类型命名」](issues/04-grilling-naming.md) — NuGet/程序集/命名空间均为 `GsCan`；类型 `Device`/`Channel`/`CanFrame`；公共名不出现 Candle
+- [「05 grilling：仅 netstandard2.0 还是多目标」](issues/05-grilling-target-frameworks.md) — 只 `netstandard2.0`；公共面不许现代 TFM 专属成员；以后加 net10 另开票
 
 ## Not yet specified
 
