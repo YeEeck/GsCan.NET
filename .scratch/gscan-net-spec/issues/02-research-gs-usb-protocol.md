@@ -1,7 +1,7 @@
 # 02 research：gs_usb 线协议与 FlintCAN-FD 主机可见子集
 
 Type: research
-Status: claimed
+Status: resolved
 Blocked by: （无）
 
 ## Question
@@ -22,3 +22,9 @@ FlintCAN-FD 是第一等设备。设备侧术语已经钉在 FlintCAN-FD 的 `CO
 ## 产出
 
 `research/gs-usb-protocol.md`：协议能力表 + FlintCAN-FD 子集表，每条标注一手来源（内核文件路径+版本，或本地固件头文件路径）。
+
+## Answer
+
+Mainline gs_usb 没有独立 uapi 头，线协议就在 Linux 7.3-rc3 的 `drivers/net/can/usb/gs_usb.c`（tip `3392698d…`）：bulk `gs_host_frame`（经典/FD ± HW ts、`echo_id`、OVERFLOW、SocketCAN 错误帧）+ BREQ 0–14 / feature 0–13。FlintCAN-FD 主机可见：双通道 CAN FD、HW timestamp、IDENTIFY、BERR 帧、GET_STATE、TDC、BUS_OFF_RECOVERY；无开关端接、滤波、USER_ID、ELM、`BREQ_BERR`。TX echo ≠ 上总线；Channel stop 丢未完成 Host TX 且无 echo。
+
+完整表与引用：[`research/gs-usb-protocol.md`](../../../research/gs-usb-protocol.md)。
