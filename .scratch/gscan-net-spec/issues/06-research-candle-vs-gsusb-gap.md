@@ -1,7 +1,7 @@
 # 06 research：candle.dll 对 gs_usb 的能力缺口
 
 Type: research
-Status: claimed
+Status: resolved
 Blocked by: 01, 02
 
 ## Question
@@ -21,3 +21,9 @@ Blocked by: 01, 02
 ## 产出
 
 `research/candle-vs-gsusb-gap.md`：能力 ×（协议 / FlintCAN-FD / candle.dll）对照表。
+
+## Answer
+
+FlintCAN-FD 数据面（双通道 CAN FD、HW timestamp、帧 I/O、echo 类型、OVERFLOW 标志、错误帧、channel start/stop）Schildkroet candle 基本覆盖；硬缺口（DLL 无导出）是 **IDENTIFY**、**TDC**、**BUS_OFF_RECOVERY**、主机自选 **echo_id**（send 强制 0）、**BERR_REPORTING** 模式开关。端接/滤波 DLL 也无导出，且本板不用。`candle_channel_get_state` 有导出，但 ctrl 层 BREQ=12 与现协议 GET_STATE=14 不符。
+
+完整对照表：[`research/candle-vs-gsusb-gap.md`](../../../research/candle-vs-gsusb-gap.md)。
