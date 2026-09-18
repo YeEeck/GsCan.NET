@@ -21,6 +21,7 @@
 <!-- 索引：每行一个已关闭 ticket：标题 + 链接 + 一句话答案 -->
 - [「01 research：Schildkroet candle.dll 身份与 API 清单」](issues/01-research-candle-dll.md) — Schildkroet/CANgaroo 的 CandleApiDriver/api（LGPL-3、WinUSB、含 CAN FD）；无官方预编译 candle.dll，需自建；IDENTIFY/端接/TDC/滤波无头文件导出
 - [「02 research：gs_usb 线协议与 FlintCAN-FD 主机可见子集」](issues/02-research-gs-usb-protocol.md) — 线协议在内核 `gs_usb.c`（无独立 uapi）；FlintCAN-FD 可见双通道 FD+HW ts+IDENTIFY+BERR+GET_STATE+TDC+BUS_OFF_RECOVERY，无端接/滤波；TX echo≠上总线，Channel stop 丢 Host TX 无 echo
+- [「03 research：现有 candle/gs_usb 的 .NET 封装」](issues/03-research-existing-dotnet-wrappers.md) — 无可用 .NET 依赖；Candle.NET 仅作对照（无 FD、停更）；Schildkroet 无 C# 包装；公共界面从零设计
 
 ## Not yet specified
 

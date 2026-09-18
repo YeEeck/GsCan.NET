@@ -1,7 +1,7 @@
 # 03 research：现有 candle/gs_usb 的 .NET 封装
 
 Type: research
-Status: claimed
+Status: resolved
 Blocked by: （无）
 
 ## Question
@@ -22,3 +22,9 @@ Blocked by: （无）
 ## 产出
 
 `research/existing-dotnet-wrappers.md`：候选表 + 逐项结论，一手来源（NuGet 页、仓库 README/csproj、LICENSE）。
+
+## Answer
+
+无有可采纳的 .NET 运行时依赖：NuGet 上无 candle/gs_usb 主机库；唯一正经的托管封装 [elliotwoods/Candle.NET](https://github.com/elliotwoods/Candle.NET)（netstandard2.0、C# MIT）停更于 2021、无 CAN FD、DllImport 钉死 HubertD 系 `Candle.dll`，只配当对照；[CypressControls/CandleLightNet](https://github.com/CypressControls/CandleLightNet) 为 2019 的 net472 C++/CLR + LGPL，不可用。Schildkroet **没有** C# 包装（CANgaroo 是 C++/Qt，其原生 candle.h 才有 FD）。python-can / jxltom/gs_usb / chemicstry/candle_driver 仅作 API 面对照。规格应**从零设计公共界面**，封装 Schildkroet 的 candle.dll。
+
+详情：[`research/existing-dotnet-wrappers.md`](../../../research/existing-dotnet-wrappers.md)
