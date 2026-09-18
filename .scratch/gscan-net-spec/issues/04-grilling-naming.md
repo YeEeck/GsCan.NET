@@ -1,7 +1,7 @@
 # 04 grilling：程序集、NuGet 与核心类型命名
 
 Type: grilling
-Status: open
+Status: claimed
 Blocked by: （无）
 
 ## Question
