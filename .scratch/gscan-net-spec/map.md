@@ -19,6 +19,7 @@
 ## Decisions so far
 
 <!-- 索引：每行一个已关闭 ticket：标题 + 链接 + 一句话答案 -->
+- [「01 research：Schildkroet candle.dll 身份与 API 清单」](issues/01-research-candle-dll.md) — Schildkroet/CANgaroo 的 CandleApiDriver/api（LGPL-3、WinUSB、含 CAN FD）；无官方预编译 candle.dll，需自建；IDENTIFY/端接/TDC/滤波无头文件导出
 
 ## Not yet specified
 

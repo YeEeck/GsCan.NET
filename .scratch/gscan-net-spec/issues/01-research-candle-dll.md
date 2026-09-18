@@ -1,7 +1,7 @@
 # 01 research：Schildkroet candle.dll 身份与 API 清单
 
 Type: research
-Status: claimed
+Status: resolved
 Blocked by: （无）
 
 ## Question
@@ -25,3 +25,9 @@ Schildkroet 的 candle.dll 到底是哪份产物？规格要封装的就是这�
 ## 产出
 
 `research/candle-dll-identity.md`：每个调查项给结论，标注一手来源（仓库文件 / 头文件 / LICENSE / 发布资产）。
+
+## Answer
+
+Schildkroet 点名的 Windows 主机 C API 是 **`Schildkroet/CANgaroo`** 里的 `src/driver/CandleApiDriver/api/`（Hubert Denkmair 2016 起源 + Schildkroet 2026 CAN FD 扩展，**LGPL-3.0-or-later**，**WinUSB**）。它目前**静态编进 CANgaroo**，GitHub Releases **没有**独立预编译 `candle.dll`；`candle-usb/candle_api` 仓库不存在；8devices/`usb2can.dll` 与 python-can usb2can 是另一条线。头文件导出含多 Channel、CAN FD（data timing / fd_frame send·read）、硬件时间戳与 `candle_channel_get_state`；**IDENTIFY / 端接 / TDC / 滤波：头文件无此导出**。
+
+完整签名清单与引用来源见 [`research/candle-dll-identity.md`](../../../research/candle-dll-identity.md)。
