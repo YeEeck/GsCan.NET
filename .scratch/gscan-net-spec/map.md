@@ -28,6 +28,7 @@
 - [「07 prototype：公共 API 外观草稿」](issues/07-prototype-public-api.md) — 工作外观：Device 拥有 Channel；TryRead 超时轮询；一个 CanFrame+Kind；整数 bitrate；资产在 `prototype/public-api`
 - [「08 grilling：错误模型与 TX echo / Bus-off 主机语义」](issues/08-grilling-error-and-echo.md) — 配置抛异常、总线走帧；Echo=FIFO 且≠上总线；Stop 静默丢未完成 Send；不暴露 State/恢复；Overflow 是标志、BERR 是 Error 帧
 - [「09 grilling：candle.dll 随 NuGet 再分发」](issues/09-grilling-native-packaging.md) — 单包 `GsCan` 内嵌自建动态库；RID + `.targets` 旁路拷贝；默认按文件名加载；LGPL 声明与对应源码
+- [「10 grilling：第一版规格的 gs_usb 能力范围」](issues/10-grilling-v1-capability-scope.md) — v1：双通道 + CAN FD + 硬件时间戳 + Echo/Overflow/Error 帧 + 模式位；IDENTIFY/TDC/端接/滤波/State/恢复/自选 echo_id 本图范围外
 
 ## Not yet specified
 
@@ -48,3 +49,6 @@
 - CANopen / ISO-TP / UDS / DBC 协议栈
 - 固件与硬件
 - ZLG / Kvaser 等非 gs_usb 适配器
+- IDENTIFY、TDC、软件端接、硬件滤波——candle.dll 无导出（见 10）
+- GET_STATE / `Channel.State`、BUS_OFF_RECOVERY——08 已切且 DLL 缺口（见 10）
+- 自选 echo_id、BERR 模式开关——DLL 无导出（见 10）
