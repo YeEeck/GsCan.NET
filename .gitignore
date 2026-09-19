@@ -1,0 +1,12 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+native/candle-api/build-*/
+*.nupkg
+*.snupkg
+artifacts/
+GsCan.slnx
+.scratch/cangaroo-src/
+.scratch/candle_dll-hubert/

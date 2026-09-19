@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RootNamespace>GsCan</RootNamespace>
+    <AssemblyName>GsCan</AssemblyName>
+    <PackageId>GsCan</PackageId>
+    <Description>gs_usb host library for .NET (FlintCAN-FD and compatible adapters).</Description>
+    <PackageTags>CAN;CAN-FD;gs_usb;USB</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Authors>GsCan.NET</Authors>
+    <LangVersion>latest</LangVersion>
+    <Company>GsCan.NET</Company>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="runtimes\win-x64\native\candle_api.dll"
+          Pack="true"
+          PackagePath="runtimes/win-x64/native/"
+          Condition="Exists('runtimes\win-x64\native\candle_api.dll')" />
+    <None Include="runtimes\win-x86\native\candle_api.dll"
+          Pack="true"
+          PackagePath="runtimes/win-x86/native/"
+          Condition="Exists('runtimes\win-x86\native\candle_api.dll')" />
+
+    <None Include="build\GsCan.targets" Pack="true" PackagePath="build/GsCan.targets" />
+    <None Include="build\GsCan.targets" Pack="true" PackagePath="buildTransitive/GsCan.targets" />
+
+    <None Include="..\..\licenses\GPL-3.0.txt" Pack="true" PackagePath="licenses/GPL-3.0.txt" Link="licenses\GPL-3.0.txt" />
+    <None Include="..\..\licenses\LGPL-3.0.txt" Pack="true" PackagePath="licenses/LGPL-3.0.txt" Link="licenses\LGPL-3.0.txt" />
+    <None Include="..\..\native\candle-api\SOURCE.txt" Pack="true" PackagePath="native-src/SOURCE.txt" Link="native-src\SOURCE.txt" />
+    <None Include="..\..\native\candle-api\api\*" Pack="true" PackagePath="native-src/api/" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <Target Name="CopyCandleApiNative" AfterTargets="Build">
+    <PropertyGroup>
+      <_GsCanNativeArch Condition="'$(PlatformTarget)' == 'x86' Or '$(Platform)' == 'x86'">win-x86</_GsCanNativeArch>
+      <_GsCanNativeArch Condition="'$(_GsCanNativeArch)' == ''">win-x64</_GsCanNativeArch>
+      <_GsCanNativeDll>$(MSBuildProjectDirectory)\runtimes\$(_GsCanNativeArch)\native\candle_api.dll</_GsCanNativeDll>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_GsCanNativeDll)"
+          DestinationFolder="$(TargetDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(_GsCanNativeDll)')" />
+  </Target>
+
+</Project>

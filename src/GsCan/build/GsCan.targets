@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Copy candle_api.dll next to the app so DllImport("candle_api") works for
+       .NET Framework and non-RID builds, not only RID-aware publish. -->
+  <PropertyGroup>
+    <_GsCanNativeArch Condition="'$(PlatformTarget)' == 'x86' Or '$(Platform)' == 'x86'">win-x86</_GsCanNativeArch>
+    <_GsCanNativeArch Condition="'$(_GsCanNativeArch)' == ''">win-x64</_GsCanNativeArch>
+    <_GsCanRuntimesDir>$(MSBuildThisFileDirectory)..\runtimes</_GsCanRuntimesDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="$(_GsCanRuntimesDir)\$(_GsCanNativeArch)\native\candle_api.dll"
+          Condition="Exists('$(_GsCanRuntimesDir)\$(_GsCanNativeArch)\native\candle_api.dll')">
+      <Link>candle_api.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </None>
+  </ItemGroup>
+</Project>

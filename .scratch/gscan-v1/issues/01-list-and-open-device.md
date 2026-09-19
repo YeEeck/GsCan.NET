@@ -6,12 +6,17 @@ Parent: [GsCan.NET v1 规格](../../gscan-net-spec/spec.md)
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** verified (hardware pending)
 
 - [ ] `Device.List` 在插着 FlintCAN-FD 时返回至少一项，`ChannelCount` 为 2，并带可用来 `Open` 的路径
 - [ ] `Device.Open` 给出两路 `Channel`（下标 0 和 1），尚未 `Start`
 - [ ] `Dispose`（含 using）释放设备；再 `Open` 同一项仍可用
-- [ ] 无设备时 `List` 返回空集合，不抛
-- [ ] 单一 NuGet/程序集 `GsCan`、`netstandard2.0`；native 为自建动态库（x86/x64），RID + 旁路拷贝使 `DllImport` 能加载
-- [ ] 包内有 LGPL/GPL 文本及对应 `api/` 源码获取方式；不附带 CANgaroo 应用
-- [ ] 公共类型与命名空间不出现 Candle
+- [x] 无设备时 `List` 返回空集合，不抛
+- [x] 单一 NuGet/程序集 `GsCan`、`netstandard2.0`；native 为自建动态库（x86/x64），RID + 旁路拷贝使 `DllImport` 能加载
+- [x] 包内有 LGPL/GPL 文本及对应 `api/` 源码获取方式；不附带 CANgaroo 应用
+- [x] 公共类型与命名空间不出现 Candle
+
+## Comments
+
+- 2026-09-19 编排验证：`dotnet test GsCan.sln` 6 通过。本机无 FlintCAN-FD（VID:PID 1d50:606f），硬件三项测试 SKIP，未勾。软件三项（空 List、nupkg+RID、LGPL/GPL+api 源、公共面无 Candle）已核对 `artifacts/GsCan.1.0.0.nupkg`。
+- Native：`candle_api.dll`，Schildkroet/CANgaroo `api/` @ `46eeb8b`，vendor 于 `native/candle-api/`。`Channel.Start/Stop/Send/TryRead` 仍抛 `NotImplementedException`。

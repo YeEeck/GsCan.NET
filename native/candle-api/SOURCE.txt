@@ -1,0 +1,6 @@
+Source: https://github.com/Schildkroet/CANgaroo
+Path: src/driver/CandleApiDriver/api/
+Commit: 46eeb8b570e5f0cc66a661e9b58cc2f695107807
+License: LGPL-3.0-or-later (see api/LICENSE and licenses/)
+Obtaining corresponding source: this tree is the corresponding source shipped with GsCan.
+You may also clone CANgaroo and use the same path at the commit above.
