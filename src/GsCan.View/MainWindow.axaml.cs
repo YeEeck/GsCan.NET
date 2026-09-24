@@ -14,7 +14,7 @@ namespace GsCan.View
         private bool _stickToBottom = true;
 
         public MainWindow()
-            : this(new ViewSession(new GsCanPort()))
+            : this(new ViewSession(new GsCanPort(), FileConfigStore.InLocalAppData()))
         {
         }
 

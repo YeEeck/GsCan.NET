@@ -16,7 +16,7 @@ namespace GsCan.View
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                desktop.MainWindow = new MainWindow(new ViewSession(new GsCanPort()));
+                desktop.MainWindow = new MainWindow(new ViewSession(new GsCanPort(), FileConfigStore.InLocalAppData()));
             }
 
             base.OnFrameworkInitializationCompleted();
