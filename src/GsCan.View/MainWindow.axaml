@@ -291,7 +291,9 @@
                             <TextBlock Grid.Column="11" Text="长度" />
                             <TextBlock Grid.Column="12" Text="数据" />
                         </Grid>
-                        <ListBox Grid.Row="1" ItemsSource="{Binding Latest}">
+                        <ListBox x:Name="LatestList"
+                                 Grid.Row="1"
+                                 ItemsSource="{Binding Latest}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="session:LatestRow">
                                     <Grid ColumnDefinitions="80,56,56,48,80,36,36,36,36,36,72,44,*">

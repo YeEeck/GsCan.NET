@@ -439,7 +439,7 @@ namespace GsCan.View.Session
 
             if (channel.ListenOnly)
             {
-                LastError = "Cannot send on a listen-only channel.";
+                LastError = "只听通道不能发送。";
                 return;
             }
 

@@ -150,7 +150,7 @@ namespace GsCan.View.Tests
             session.SendOnce(0);
 
             Assert.Empty(opened.Sent);
-            Assert.Equal("Cannot send on a listen-only channel.", session.LastError);
+            Assert.Equal("只听通道不能发送。", session.LastError);
         }
 
         [Fact]
