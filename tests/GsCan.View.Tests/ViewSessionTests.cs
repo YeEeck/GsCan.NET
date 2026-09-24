@@ -1,3 +1,4 @@
+using GsCan;
 using GsCan.View.Session;
 using GsCan.View.Tests.Fakes;
 using Xunit;
@@ -57,6 +58,150 @@ namespace GsCan.View.Tests
         {
             var session = new ViewSession(new FakeGsCanPort());
             Assert.Empty(session.DeviceList);
+        }
+
+        [Fact]
+        public void RefreshDevices_fills_DeviceList_from_port_List()
+        {
+            var port = new FakeGsCanPort();
+            port.Devices.Add(new DeviceInfo(@"\\?\usb#vid_1d50&pid_606f#1", 2));
+            var session = new ViewSession(port);
+
+            session.RefreshDevices();
+
+            Assert.Equal(1, port.ListCallCount);
+            Assert.Single(session.DeviceList);
+            Assert.Equal(@"\\?\usb#vid_1d50&pid_606f#1", session.DeviceList[0].Path);
+            Assert.Equal(2, session.DeviceList[0].ChannelCount);
+        }
+
+        [Fact]
+        public void DeviceList_is_a_snapshot_and_does_not_update_until_refresh()
+        {
+            var port = new FakeGsCanPort();
+            port.Devices.Add(new DeviceInfo(@"\\?\usb#a", 2));
+            var session = new ViewSession(port);
+            session.RefreshDevices();
+
+            port.Devices.Clear();
+            port.Devices.Add(new DeviceInfo(@"\\?\usb#b", 1));
+
+            Assert.Single(session.DeviceList);
+            Assert.Equal(@"\\?\usb#a", session.DeviceList[0].Path);
+
+            session.RefreshDevices();
+
+            Assert.Equal(2, port.ListCallCount);
+            Assert.Single(session.DeviceList);
+            Assert.Equal(@"\\?\usb#b", session.DeviceList[0].Path);
+            Assert.Equal(1, session.DeviceList[0].ChannelCount);
+        }
+
+        [Fact]
+        public void RefreshDevices_with_no_devices_leaves_DeviceList_empty()
+        {
+            var session = new ViewSession(new FakeGsCanPort());
+
+            session.RefreshDevices();
+
+            Assert.Empty(session.DeviceList);
+        }
+
+        [Fact]
+        public void Open_sets_OpenedPath_and_creates_stopped_Channels()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port);
+
+            session.Open(info);
+
+            Assert.Equal(1, port.OpenCallCount);
+            Assert.Equal(@"\\?\usb#a", session.OpenedPath);
+            Assert.Equal(2, session.Channels.Count);
+            Assert.Equal(0, session.Channels[0].Index);
+            Assert.Equal(1, session.Channels[1].Index);
+            Assert.False(session.Channels[0].IsRunning);
+            Assert.False(session.Channels[1].IsRunning);
+            Assert.Equal(0, port.LastOpenedDevice!.StartCallCount);
+        }
+
+        [Fact]
+        public void Open_creates_one_Channel_bar_when_ChannelCount_is_1()
+        {
+            var info = new DeviceInfo(@"\\?\usb#single", 1);
+            var session = new ViewSession(new FakeGsCanPort());
+
+            session.Open(info);
+
+            Assert.Single(session.Channels);
+            Assert.Equal(0, session.Channels[0].Index);
+            Assert.False(session.Channels[0].IsRunning);
+        }
+
+        [Fact]
+        public void Open_does_not_open_a_second_Device_while_one_is_open()
+        {
+            var first = new DeviceInfo(@"\\?\usb#a", 2);
+            var second = new DeviceInfo(@"\\?\usb#b", 1);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port);
+
+            session.Open(first);
+            session.Open(second);
+
+            Assert.Equal(1, port.OpenCallCount);
+            Assert.Equal(@"\\?\usb#a", session.OpenedPath);
+            Assert.Equal(2, session.Channels.Count);
+        }
+
+        [Fact]
+        public void Close_releases_Device_so_the_same_info_can_be_opened_again()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port);
+
+            session.Open(info);
+            session.Close();
+
+            Assert.Null(session.OpenedPath);
+            Assert.Empty(session.Channels);
+            Assert.Equal(1, port.DisposeCallCount);
+
+            session.Open(info);
+
+            Assert.Equal(@"\\?\usb#a", session.OpenedPath);
+            Assert.Equal(2, session.Channels.Count);
+            Assert.Equal(2, port.OpenCallCount);
+            Assert.DoesNotContain(session.Channels, channel => channel.IsRunning);
+        }
+
+        [Fact]
+        public void Open_failure_surfaces_GsCanException_and_does_not_open()
+        {
+            var info = new DeviceInfo(@"\\?\usb#missing", 2);
+            var port = new FakeGsCanPort
+            {
+                OpenException = new GsCanException("Device not found: \\\\?\\usb#missing")
+            };
+            var session = new ViewSession(port);
+
+            session.Open(info);
+
+            Assert.Null(session.OpenedPath);
+            Assert.Empty(session.Channels);
+            Assert.Equal("Device not found: \\\\?\\usb#missing", session.LastError);
+            Assert.Equal(1, port.OpenCallCount);
+            Assert.Equal(0, port.DisposeCallCount);
+        }
+
+        [Fact]
+        public void Close_when_no_Device_is_open_does_not_throw()
+        {
+            var session = new ViewSession(new FakeGsCanPort());
+            session.Close();
+            Assert.Null(session.OpenedPath);
         }
     }
 }

@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:gscan="using:GsCan"
         xmlns:session="using:GsCan.View.Session"
         x:Class="GsCan.View.MainWindow"
         x:DataType="session:ViewSession"
@@ -13,29 +14,82 @@
                 Padding="12,8"
                 BorderBrush="#33000000"
                 BorderThickness="0,0,0,1">
-            <TextBlock Text="设备" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Column="0"
+                           Margin="0,0,12,0"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           Text="设备" />
+                <ComboBox Grid.Column="1"
+                          MinWidth="240"
+                          HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding DeviceList}"
+                          PlaceholderText="无设备"
+                          SelectedItem="{Binding SelectedDevice}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="gscan:DeviceInfo">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding Path}" />
+                                <TextBlock Text="{Binding ChannelCount, StringFormat='({0} 路通道)'}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="2"
+                        Margin="8,0,0,0"
+                        Command="{Binding RefreshDevices}"
+                        Content="刷新" />
+                <Button Grid.Column="3"
+                        Margin="8,0,0,0"
+                        Command="{Binding OpenSelected}"
+                        Content="打开" />
+                <Button Grid.Column="4"
+                        Margin="8,0,0,0"
+                        Command="{Binding Close}"
+                        Content="关闭" />
+                <TextBlock Grid.Column="5"
+                           Margin="12,0,0,0"
+                           VerticalAlignment="Center"
+                           Text="{Binding OpenedPath, TargetNullValue='未打开'}" />
+            </Grid>
         </Border>
         <Border Grid.Row="1"
                 Padding="12,8"
                 BorderBrush="#33000000"
                 BorderThickness="0,0,0,1">
-            <TextBlock Text="通道" FontWeight="SemiBold" />
+            <StackPanel>
+                <TextBlock Margin="0,0,0,8"
+                           FontWeight="SemiBold"
+                           Text="通道" />
+                <ItemsControl ItemsSource="{Binding Channels}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="session:ChannelState">
+                            <Border Padding="0,4">
+                                <TextBlock Text="{Binding Index, StringFormat='通道 {0}'}" />
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
         </Border>
         <Border Grid.Row="2"
                 Padding="12,8"
                 BorderBrush="#33000000"
                 BorderThickness="0,0,0,1">
-            <TextBlock Text="接收" FontWeight="SemiBold" />
+            <TextBlock FontWeight="SemiBold" Text="接收" />
         </Border>
         <Border Grid.Row="3"
                 Padding="12,8"
                 MinHeight="96"
                 BorderBrush="#33000000"
                 BorderThickness="0,0,0,1">
-            <TextBlock Text="发送" FontWeight="SemiBold" />
+            <TextBlock FontWeight="SemiBold" Text="发送" />
         </Border>
         <Border Grid.Row="4" Padding="12,8">
-            <TextBlock Text="状态" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock FontWeight="SemiBold" Text="状态" />
+                <TextBlock Text="{Binding LastError}" />
+            </StackPanel>
         </Border>
     </Grid>
 </Window>
