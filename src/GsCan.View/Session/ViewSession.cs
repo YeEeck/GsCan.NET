@@ -56,6 +56,7 @@ namespace GsCan.View.Session
 
             TxSlots = slots;
             DisplayFilter = new DisplayFilter();
+            Status = new SessionStatus();
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -175,6 +176,8 @@ namespace GsCan.View.Session
         public DisplayFilter DisplayFilter { get; }
 
         public IReadOnlyList<TxSlot> TxSlots { get; }
+
+        public SessionStatus Status { get; }
 
         public bool Paused
         {
@@ -456,14 +459,19 @@ namespace GsCan.View.Session
 
         private void OnPumpError(string message)
         {
-            void SetError() => LastError = message;
-            if (_ui != null)
+            void Fail()
             {
-                _ui.Post(_ => SetError(), null);
+                Close();
+                LastError = message;
+            }
+
+            if (ShouldMarshalToUi)
+            {
+                _ui!.Post(_ => Fail(), null);
             }
             else
             {
-                SetError();
+                Fail();
             }
         }
 
@@ -474,9 +482,16 @@ namespace GsCan.View.Session
                 return;
             }
 
-            while (_opened.TryRead(channelIndex, 0, out var frame))
+            try
             {
-                Accept(channelIndex, frame);
+                while (_opened.TryRead(channelIndex, 0, out var frame))
+                {
+                    Accept(channelIndex, frame);
+                }
+            }
+            catch (GsCanException ex)
+            {
+                OnPumpError(ex.Message);
             }
         }
 
@@ -488,6 +503,12 @@ namespace GsCan.View.Session
                 {
                     _timeOriginByChannel[channelIndex] = frame.TimestampMicroseconds;
                 }
+            }
+
+            Status.Observe(frame);
+            if (!ShouldMarshalToUi)
+            {
+                Status.Publish();
             }
 
             if (_paused)
@@ -571,6 +592,8 @@ namespace GsCan.View.Session
             {
                 PauseDroppedCount += drops;
             }
+
+            Status.Publish();
         }
 
         private FrameRow ToRow(int channelIndex, CanFrame frame)

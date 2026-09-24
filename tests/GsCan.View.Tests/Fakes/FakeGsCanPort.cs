@@ -75,6 +75,7 @@ namespace GsCan.View.Tests.Fakes
         public List<int> StoppedIndexes { get; } = new List<int>();
         public Dictionary<int, ChannelOptions> LastStartOptions { get; } = new Dictionary<int, ChannelOptions>();
         public Exception? StartException { get; set; }
+        public Exception? TryReadException { get; set; }
 
         public IReadOnlyList<(int Channel, CanFrame Frame)> Sent
         {
@@ -135,6 +136,11 @@ namespace GsCan.View.Tests.Fakes
 
         public bool TryRead(int channelIndex, int timeoutMilliseconds, out CanFrame frame)
         {
+            if (TryReadException != null)
+            {
+                throw TryReadException;
+            }
+
             if (_rx[channelIndex].TryDequeue(out frame))
             {
                 return true;
