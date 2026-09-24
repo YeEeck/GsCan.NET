@@ -8,6 +8,10 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 重启后 Path、bitrate / FD / ListenOnly / Loopback / OneShot、Display Filter、TxSlot 表与上次一致
-- [ ] 启动后 Device 未打开、各路未 Start
-- [ ] 会话面测试不要求实机：写入一组配置、新建会话后读回且未 Start
+- [x] 重启后 Path、bitrate / FD / ListenOnly / Loopback / OneShot、Display Filter、TxSlot 表与上次一致
+- [x] 启动后 Device 未打开、各路未 Start
+- [x] 会话面测试不要求实机：写入一组配置、新建会话后读回且未 Start
+
+## Comments
+
+- Implemented on `feat/gscan-view-10-remember-config` (`4eb53bc`), merged to `feat/gscan-view-v1`. File store is `%LocalAppData%\GsCan.View\session.json`. Restore does not List/Open/Start.
