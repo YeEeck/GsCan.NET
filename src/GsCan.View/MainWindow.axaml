@@ -1,7 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:gscan="using:GsCan"
+        xmlns:local="using:GsCan.View"
         xmlns:session="using:GsCan.View.Session"
+        xmlns:sys="using:System"
         x:Class="GsCan.View.MainWindow"
         x:DataType="session:ViewSession"
         Title="{Binding WindowTitle}"
@@ -9,6 +11,9 @@
         Height="720"
         MinWidth="720"
         MinHeight="480">
+    <Window.Resources>
+        <local:BitrateLabelConverter x:Key="BitrateLabel" />
+    </Window.Resources>
     <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
         <Border Grid.Row="0"
                 Padding="12,8"
@@ -64,8 +69,69 @@
                 <ItemsControl ItemsSource="{Binding Channels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="session:ChannelState">
-                            <Border Padding="0,4">
-                                <TextBlock Text="{Binding Index, StringFormat='通道 {0}'}" />
+                            <Border Padding="0,6">
+                                <WrapPanel>
+                                    <TextBlock Margin="0,0,12,4"
+                                               VerticalAlignment="Center"
+                                               FontWeight="SemiBold"
+                                               Text="{Binding Index, StringFormat='通道 {0}'}" />
+                                    <Button Margin="0,0,4,4"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding Start}"
+                                            Content="启动"
+                                            IsEnabled="{Binding !IsRunning}" />
+                                    <Button Margin="0,0,12,4"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding Stop}"
+                                            Content="停止" />
+                                    <TextBlock Margin="0,0,4,4"
+                                               VerticalAlignment="Center"
+                                               Text="仲裁" />
+                                    <ComboBox Width="110"
+                                              Margin="0,0,12,4"
+                                              VerticalAlignment="Center"
+                                              ItemsSource="{x:Static session:ChannelState.ArbitrationBitrates}"
+                                              SelectedItem="{Binding Bitrate}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="sys:Int32">
+                                                <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <CheckBox Margin="0,0,12,4"
+                                              VerticalAlignment="Center"
+                                              Content="FD"
+                                              IsChecked="{Binding FdEnabled}" />
+                                    <StackPanel Margin="0,0,12,4"
+                                                Orientation="Horizontal"
+                                                Spacing="4"
+                                                IsVisible="{Binding FdEnabled}">
+                                        <TextBlock VerticalAlignment="Center" Text="数据段" />
+                                        <ComboBox Width="90"
+                                                  VerticalAlignment="Center"
+                                                  ItemsSource="{x:Static session:ChannelState.DataBitrates}"
+                                                  SelectedItem="{Binding DataBitrate}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate x:DataType="sys:Int32">
+                                                    <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </StackPanel>
+                                    <CheckBox Margin="0,0,12,4"
+                                              VerticalAlignment="Center"
+                                              Content="只听"
+                                              IsChecked="{Binding ListenOnly}" />
+                                    <CheckBox Margin="0,0,12,4"
+                                              VerticalAlignment="Center"
+                                              Content="环回"
+                                              IsChecked="{Binding Loopback}" />
+                                    <Expander Margin="0,0,0,4"
+                                              VerticalAlignment="Center"
+                                              Header="更多">
+                                        <CheckBox Content="OneShot" IsChecked="{Binding OneShot}" />
+                                    </Expander>
+                                </WrapPanel>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

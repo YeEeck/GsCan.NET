@@ -54,15 +54,27 @@ namespace GsCan.View.Tests.Fakes
         public int ChannelCount { get; }
         public string Path { get; }
         public int StartCallCount { get; private set; }
+        public int StopCallCount { get; private set; }
+        public List<int> StartedIndexes { get; } = new List<int>();
+        public List<int> StoppedIndexes { get; } = new List<int>();
+        public Dictionary<int, ChannelOptions> LastStartOptions { get; } = new Dictionary<int, ChannelOptions>();
+        public Exception? StartException { get; set; }
 
         public void Start(int channelIndex, ChannelOptions options)
         {
             StartCallCount++;
-            throw new InvalidOperationException("Ticket 02 must not Start a Channel.");
+            StartedIndexes.Add(channelIndex);
+            LastStartOptions[channelIndex] = options;
+            if (StartException != null)
+            {
+                throw StartException;
+            }
         }
 
         public void Stop(int channelIndex)
         {
+            StopCallCount++;
+            StoppedIndexes.Add(channelIndex);
         }
 
         public void Send(int channelIndex, CanFrame frame)

@@ -24,4 +24,7 @@
     <ProjectReference Include="..\..\src\GsCan.View\GsCan.View.csproj" />
   </ItemGroup>
 
+  <!-- ProjectReference does not import NuGet build/.targets; pull them in for DllImport. -->
+  <Import Project="..\..\src\GsCan\build\GsCan.targets" />
+
 </Project>

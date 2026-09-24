@@ -1,0 +1,46 @@
+using System;
+using GsCan;
+using GsCan.View.Session;
+using Xunit;
+
+namespace GsCan.View.Tests
+{
+    public class HardwareChannelStartStopTests
+    {
+        [Fact]
+        public void Hardware_can_start_and_stop_one_channel_independently()
+        {
+            var list = Device.List();
+            if (list.Count == 0)
+            {
+                Console.WriteLine("SKIP hardware Start/Stop: no gs_usb device present.");
+                return;
+            }
+
+            var session = new ViewSession(new GsCanPort());
+            try
+            {
+                session.Open(list[0]);
+                Assert.Equal(list[0].ChannelCount, session.Channels.Count);
+                Assert.DoesNotContain(session.Channels, channel => channel.IsRunning);
+
+                session.Channels[0].Loopback = true;
+                session.StartChannel(0);
+                Assert.Null(session.LastError);
+                Assert.True(session.Channels[0].IsRunning);
+                if (session.Channels.Count > 1)
+                {
+                    Assert.False(session.Channels[1].IsRunning);
+                }
+
+                session.StopChannel(0);
+                Assert.False(session.Channels[0].IsRunning);
+                Assert.Null(session.LastError);
+            }
+            finally
+            {
+                session.Close();
+            }
+        }
+    }
+}
