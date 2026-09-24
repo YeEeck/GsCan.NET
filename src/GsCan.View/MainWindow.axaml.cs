@@ -1,11 +1,16 @@
 using System;
+using System.Collections.Specialized;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using GsCan.View.Session;
 
 namespace GsCan.View
 {
     public partial class MainWindow : Window
     {
+        private readonly ViewSession _session;
+        private bool _stickToBottom = true;
+
         public MainWindow()
             : this(new ViewSession(new GsCanPort()))
         {
@@ -14,8 +19,41 @@ namespace GsCan.View
         public MainWindow(ViewSession session)
         {
             InitializeComponent();
-            DataContext = session ?? throw new ArgumentNullException(nameof(session));
-            Closed += (_, _) => session.Close();
+            _session = session ?? throw new ArgumentNullException(nameof(session));
+            DataContext = _session;
+            Closed += (_, _) => _session.Close();
+            TraceList.AddHandler(ScrollViewer.ScrollChangedEvent, OnTraceScrollChanged);
+            _session.Trace.CollectionChanged += OnTraceChanged;
+        }
+
+        private void OnTraceScrollChanged(object? sender, ScrollChangedEventArgs e)
+        {
+            var scroll = e.Source as ScrollViewer ?? TraceList.Scroll;
+            if (scroll == null)
+            {
+                return;
+            }
+
+            const double slop = 8;
+            _stickToBottom = scroll.Offset.Y + scroll.Viewport.Height >= scroll.Extent.Height - slop;
+        }
+
+        private void OnTraceChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (!_stickToBottom || _session.Trace.Count == 0)
+            {
+                return;
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!_stickToBottom || _session.Trace.Count == 0)
+                {
+                    return;
+                }
+
+                TraceList.ScrollIntoView(_session.Trace[_session.Trace.Count - 1]);
+            }, DispatcherPriority.Background);
         }
     }
 }

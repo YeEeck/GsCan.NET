@@ -172,7 +172,7 @@ namespace GsCan.View.Tests
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);
             var port = new FakeGsCanPort();
-            var session = new ViewSession(port);
+            var session = new ViewSession(port, runBackgroundPumps: false);
             session.Open(info);
             session.StartChannel(0);
             var opened = port.LastOpenedDevice!;
@@ -203,7 +203,7 @@ namespace GsCan.View.Tests
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);
             var port = new FakeGsCanPort();
-            var session = new ViewSession(port);
+            var session = new ViewSession(port, runBackgroundPumps: false);
             session.Open(info);
             return (session, port.LastOpenedDevice!);
         }
