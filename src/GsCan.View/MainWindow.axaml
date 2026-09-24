@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:session="using:GsCan.View.Session"
+        x:Class="GsCan.View.MainWindow"
+        x:DataType="session:ViewSession"
+        Title="{Binding WindowTitle}"
+        Width="1100"
+        Height="720"
+        MinWidth="720"
+        MinHeight="480">
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
+        <Border Grid.Row="0"
+                Padding="12,8"
+                BorderBrush="#33000000"
+                BorderThickness="0,0,0,1">
+            <TextBlock Text="设备" FontWeight="SemiBold" />
+        </Border>
+        <Border Grid.Row="1"
+                Padding="12,8"
+                BorderBrush="#33000000"
+                BorderThickness="0,0,0,1">
+            <TextBlock Text="通道" FontWeight="SemiBold" />
+        </Border>
+        <Border Grid.Row="2"
+                Padding="12,8"
+                BorderBrush="#33000000"
+                BorderThickness="0,0,0,1">
+            <TextBlock Text="接收" FontWeight="SemiBold" />
+        </Border>
+        <Border Grid.Row="3"
+                Padding="12,8"
+                MinHeight="96"
+                BorderBrush="#33000000"
+                BorderThickness="0,0,0,1">
+            <TextBlock Text="发送" FontWeight="SemiBold" />
+        </Border>
+        <Border Grid.Row="4" Padding="12,8">
+            <TextBlock Text="状态" FontWeight="SemiBold" />
+        </Border>
+    </Grid>
+</Window>
