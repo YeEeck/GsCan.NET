@@ -19,7 +19,7 @@ namespace GsCan.View.Session
                 writer.Write(',');
                 writer.Write(row.Kind);
                 writer.Write(',');
-                writer.Write(row.Id.ToString(CultureInfo.InvariantCulture));
+                writer.Write(row.IdHex);
                 writer.Write(',');
                 writer.Write(row.Extended);
                 writer.Write(',');

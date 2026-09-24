@@ -25,8 +25,8 @@ namespace GsCan.View.Tests
                 Assert.Equal(
                     "TimestampMicroseconds,Channel,Kind,Id,Extended,Remote,IsFd,BitRateSwitch,ErrorStateIndicator,Overflow,Length,Data",
                     lines[0]);
-                Assert.Equal("1000,0,Echo,291,False,False,False,False,False,False,1,11", lines[1]);
-                Assert.Equal("1100,0,Rx,291,False,False,False,False,False,False,1,11", lines[2]);
+                Assert.Equal("1000,0,Echo,123,False,False,False,False,False,False,1,11", lines[1]);
+                Assert.Equal("1100,0,Rx,123,False,False,False,False,False,False,1,11", lines[2]);
             }
             finally
             {
@@ -55,9 +55,9 @@ namespace GsCan.View.Tests
                 session.SaveLog(path);
 
                 var text = File.ReadAllText(path);
-                Assert.Contains("1000,0,Rx,256,", text);
-                Assert.Contains("3000,0,Echo,768,", text);
-                Assert.DoesNotContain(",512,", text);
+                Assert.Contains("1000,0,Rx,100,", text);
+                Assert.Contains("3000,0,Echo,300,", text);
+                Assert.DoesNotContain("2000,0,Rx,200,", text);
                 Assert.DoesNotContain("2000,", text);
                 Assert.Equal(1, session.PauseDroppedCount);
             }
@@ -93,7 +93,7 @@ namespace GsCan.View.Tests
 
                 var lines = File.ReadAllLines(path);
                 Assert.Equal(2, lines.Length);
-                Assert.Equal("424242,0,Rx,28036591,True,False,True,True,True,True,2,AA BB", lines[1]);
+                Assert.Equal("424242,0,Rx,01ABCDEF,True,False,True,True,True,True,2,AA BB", lines[1]);
             }
             finally
             {

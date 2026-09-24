@@ -56,5 +56,53 @@ namespace GsCan.View.Tests
                 session.Close();
             }
         }
+
+        [Fact]
+        public void Hardware_unplug_during_use_surfaces_LastError()
+        {
+            var list = Device.List();
+            if (list.Count == 0)
+            {
+                Console.WriteLine("SKIP unplug: no gs_usb device present.");
+                return;
+            }
+
+            if (!string.Equals(
+                    Environment.GetEnvironmentVariable("GSCAN_UNPLUG_TEST"),
+                    "1",
+                    StringComparison.Ordinal))
+            {
+                Console.WriteLine(
+                    "SKIP unplug: set GSCAN_UNPLUG_TEST=1 and unplug the adapter during the wait.");
+                return;
+            }
+
+            var session = new ViewSession(new GsCanPort());
+            try
+            {
+                session.Open(list[0]);
+                session.Channels[0].Loopback = true;
+                session.StartChannel(0);
+                Assert.Null(session.LastError);
+                Console.WriteLine("Unplug the adapter now (10s window)...");
+
+                var deadline = DateTime.UtcNow.AddSeconds(10);
+                while (DateTime.UtcNow < deadline)
+                {
+                    if (!string.IsNullOrEmpty(session.LastError))
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(50);
+                }
+
+                Assert.False(string.IsNullOrEmpty(session.LastError));
+            }
+            finally
+            {
+                session.Close();
+            }
+        }
     }
 }

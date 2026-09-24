@@ -33,6 +33,20 @@ namespace GsCan.View.Tests
                     Assert.False(session.Channels[1].IsRunning);
                 }
 
+                if (session.Channels.Count >= 2)
+                {
+                    session.Channels[1].Loopback = true;
+                    session.StartChannel(1);
+                    Assert.Null(session.LastError);
+                    Assert.True(session.Channels[0].IsRunning);
+                    Assert.True(session.Channels[1].IsRunning);
+
+                    session.StopChannel(1);
+                    Assert.False(session.Channels[1].IsRunning);
+                    Assert.True(session.Channels[0].IsRunning);
+                    Assert.Null(session.LastError);
+                }
+
                 session.StopChannel(0);
                 Assert.False(session.Channels[0].IsRunning);
                 Assert.Null(session.LastError);
