@@ -8,7 +8,11 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 产出 win-x64 自包含 zip，不含安装器、不含单文件包
-- [ ] 解压后 exe 旁能加载 native，不必先装桌面运行时
-- [ ] 不附带 x86 作为第一版交付；介绍里不写 Linux / macOS
-- [ ] 不把 CANgaroo 那个 GPL 应用打进包
+- [x] 产出 win-x64 自包含 zip，不含安装器、不含单文件包
+- [x] 解压后 exe 旁能加载 native，不必先装桌面运行时
+- [x] 不附带 x86 作为第一版交付；介绍里不写 Linux / macOS
+- [x] 不把 CANgaroo 那个 GPL 应用打进包
+
+## Comments
+
+- Implemented on `feat/gscan-view-11-win-x64-zip` (`9f912a9`), merged to `feat/gscan-view-v1`. `scripts/publish-view.ps1` publishes self-contained win-x64 zip with `candle_api.dll` beside the exe.
