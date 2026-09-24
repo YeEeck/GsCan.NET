@@ -19,6 +19,7 @@ namespace GsCan.View.Session
         private readonly SynchronizationContext? _ui;
         private readonly object _pendingLock = new object();
         private readonly List<FrameRow> _pendingRows = new List<FrameRow>();
+        private readonly TxScheduler _scheduler;
         private IOpenedDevice? _opened;
         private IReadOnlyList<DeviceInfo> _deviceList;
         private IReadOnlyList<ChannelState> _channels;
@@ -37,7 +38,12 @@ namespace GsCan.View.Session
         {
         }
 
-        internal ViewSession(IGsCanPort port, bool runBackgroundPumps)
+        public ViewSession(IGsCanPort port, IClock clock)
+            : this(port, runBackgroundPumps: true, clock: clock)
+        {
+        }
+
+        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null)
         {
             _port = port ?? throw new ArgumentNullException(nameof(port));
             _runBackgroundPumps = runBackgroundPumps;
@@ -48,10 +54,12 @@ namespace GsCan.View.Session
             Latest = new ObservableCollection<LatestRow>();
             _trace = new TraceBuffer(Trace);
             _latest = new LatestView(Latest);
+            _scheduler = new TxScheduler(clock ?? new RealtimeClock(), CyclicSend);
             var slots = new TxSlot[TxSlot.SlotCount];
             for (int i = 0; i < slots.Length; i++)
             {
                 slots[i] = new TxSlot(i, SendOnce);
+                slots[i].PropertyChanged += OnTxSlotPropertyChanged;
             }
 
             TxSlots = slots;
@@ -93,7 +101,17 @@ namespace GsCan.View.Session
             get => _channels;
             private set
             {
+                foreach (var channel in _channels)
+                {
+                    channel.PropertyChanged -= OnChannelPropertyChanged;
+                }
+
                 _channels = value;
+                foreach (var channel in _channels)
+                {
+                    channel.PropertyChanged += OnChannelPropertyChanged;
+                }
+
                 Raise(nameof(Channels));
             }
         }
@@ -296,6 +314,14 @@ namespace GsCan.View.Session
             }
 
             StartPump(index);
+            if (channel.ListenOnly)
+            {
+                DisableCyclicOnChannel(index);
+            }
+            else
+            {
+                SyncCyclicOnChannel(index);
+            }
         }
 
         public void StopChannel(int index)
@@ -305,6 +331,7 @@ namespace GsCan.View.Session
                 return;
             }
 
+            DisableCyclicOnChannel(index);
             StopPump(index);
             Channels[index].IsRunning = false;
         }
@@ -316,6 +343,7 @@ namespace GsCan.View.Session
                 return;
             }
 
+            DisableAllCyclic();
             for (int i = 0; i < Channels.Count; i++)
             {
                 if ((i < _pumps.Length && _pumps[i] != null) || Channels[i].IsRunning)
@@ -387,6 +415,123 @@ namespace GsCan.View.Session
             {
                 LastError = ex.Message;
             }
+        }
+
+        private void CyclicSend(int slotIndex)
+        {
+            if (ShouldMarshalToUi)
+            {
+                _ui!.Post(_ => SendOnce(slotIndex), null);
+            }
+            else
+            {
+                SendOnce(slotIndex);
+            }
+        }
+
+        private void OnTxSlotPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            var slot = sender as TxSlot;
+            if (slot == null)
+            {
+                return;
+            }
+
+            if (e.PropertyName != nameof(TxSlot.Enabled)
+                && e.PropertyName != nameof(TxSlot.PeriodMs)
+                && e.PropertyName != nameof(TxSlot.Channel))
+            {
+                return;
+            }
+
+            SyncCyclic(slot);
+        }
+
+        private void OnChannelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            var channel = sender as ChannelState;
+            if (channel == null)
+            {
+                return;
+            }
+
+            if (e.PropertyName != nameof(ChannelState.ListenOnly))
+            {
+                return;
+            }
+
+            if (channel.ListenOnly)
+            {
+                DisableCyclicOnChannel(channel.Index);
+            }
+        }
+
+        private void SyncCyclic(TxSlot slot)
+        {
+            if (slot.Enabled && slot.PeriodMs > 0 && CanSendOn(slot.Channel))
+            {
+                _scheduler.Start(slot.Index, slot.PeriodMs);
+                return;
+            }
+
+            _scheduler.Stop(slot.Index);
+            if (slot.Enabled && ChannelIsListenOnly(slot.Channel))
+            {
+                slot.Enabled = false;
+            }
+        }
+
+        private bool ChannelIsListenOnly(int channelIndex)
+        {
+            return channelIndex >= 0
+                && channelIndex < Channels.Count
+                && Channels[channelIndex].ListenOnly;
+        }
+
+        private void SyncCyclicOnChannel(int channelIndex)
+        {
+            foreach (var slot in TxSlots)
+            {
+                if (slot.Channel == channelIndex)
+                {
+                    SyncCyclic(slot);
+                }
+            }
+        }
+
+        private void DisableCyclicOnChannel(int channelIndex)
+        {
+            foreach (var slot in TxSlots)
+            {
+                if (slot.Channel == channelIndex && slot.Enabled)
+                {
+                    slot.Enabled = false;
+                }
+            }
+        }
+
+        private void DisableAllCyclic()
+        {
+            foreach (var slot in TxSlots)
+            {
+                if (slot.Enabled)
+                {
+                    slot.Enabled = false;
+                }
+            }
+
+            _scheduler.StopAll();
+        }
+
+        private bool CanSendOn(int channelIndex)
+        {
+            if (_opened == null || channelIndex < 0 || channelIndex >= Channels.Count)
+            {
+                return false;
+            }
+
+            var channel = Channels[channelIndex];
+            return channel.IsRunning && !channel.ListenOnly;
         }
 
         public void PumpUntilIdle()
