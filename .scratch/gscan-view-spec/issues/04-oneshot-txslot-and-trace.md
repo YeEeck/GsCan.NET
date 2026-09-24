@@ -8,10 +8,14 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] Loopback 下一次 Send 在 Trace 里能同时看到 Echo 和 Rx，Kind 为英文词条
-- [ ] 任何文案都不把 Echo 说成 TX 成功 / 已上总线 / 发送成功
-- [ ] 暂停期间新帧不进 Trace，泵仍在读，状态能看见暂停丢弃；清空不动总线
-- [ ] Trace 超上限丢最旧；相对时间为本次 Start 后的毫秒
-- [ ] ListenOnly 的路上 TxSlot 不能 Send
-- [ ] 会话面可注入 CanFrame 验证顺序、Kind、暂停、上限，不要求实机
-- [ ] 实机 FlintCAN-FD 走通 Loopback 发一帧（无设备则 SKIP）
+- [x] Loopback 下一次 Send 在 Trace 里能同时看到 Echo 和 Rx，Kind 为英文词条
+- [x] 任何文案都不把 Echo 说成 TX 成功 / 已上总线 / 发送成功
+- [x] 暂停期间新帧不进 Trace，泵仍在读，状态能看见暂停丢弃；清空不动总线
+- [x] Trace 超上限丢最旧；相对时间为本次 Start 后的毫秒
+- [x] ListenOnly 的路上 TxSlot 不能 Send
+- [x] 会话面可注入 CanFrame 验证顺序、Kind、暂停、上限，不要求实机
+- [x] 实机 FlintCAN-FD 走通 Loopback 发一帧（无设备则 SKIP）
+
+## Comments
+
+- Implemented on `feat/gscan-view-04-oneshot-trace` (`438e19d`), merged to `feat/gscan-view-v1`. `PumpUntilIdle` is the test injection path; production uses per-channel `ReadPump`. Pause does not stop the pump.
