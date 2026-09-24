@@ -12,6 +12,7 @@ namespace GsCan.View.Session
     {
         // Held for later List/Open/Start. Construct must not call the port.
         private readonly IGsCanPort _port;
+        private readonly IConfigStore? _configStore;
         private readonly bool _runBackgroundPumps;
         private readonly TraceBuffer _trace;
         private readonly LatestView _latest;
@@ -20,7 +21,10 @@ namespace GsCan.View.Session
         private readonly object _pendingLock = new object();
         private readonly List<FrameRow> _pendingRows = new List<FrameRow>();
         private readonly TxScheduler _scheduler;
+        private readonly List<ChannelConfig> _heldChannels = new List<ChannelConfig>();
+        private readonly bool[] _heldEnabled = new bool[TxSlot.SlotCount];
         private IOpenedDevice? _opened;
+        private bool _suppressPersist;
         private IReadOnlyList<DeviceInfo> _deviceList;
         private IReadOnlyList<ChannelState> _channels;
         private ReadPump?[] _pumps = Array.Empty<ReadPump?>();
@@ -43,9 +47,20 @@ namespace GsCan.View.Session
         {
         }
 
-        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null)
+        public ViewSession(IGsCanPort port, IConfigStore? configStore)
+            : this(port, runBackgroundPumps: true, clock: null, configStore: configStore)
+        {
+        }
+
+        public ViewSession(IGsCanPort port, IClock clock, IConfigStore? configStore)
+            : this(port, runBackgroundPumps: true, clock: clock, configStore: configStore)
+        {
+        }
+
+        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null, IConfigStore? configStore = null)
         {
             _port = port ?? throw new ArgumentNullException(nameof(port));
+            _configStore = configStore;
             _runBackgroundPumps = runBackgroundPumps;
             _ui = SynchronizationContext.Current;
             _deviceList = Array.Empty<DeviceInfo>();
@@ -65,6 +80,8 @@ namespace GsCan.View.Session
             TxSlots = slots;
             DisplayFilter = new DisplayFilter();
             Status = new SessionStatus();
+            RestoreFromStore();
+            DisplayFilter.PropertyChanged += OnDisplayFilterPropertyChanged;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -143,6 +160,7 @@ namespace GsCan.View.Session
 
                 _selectedDevice = value;
                 Raise(nameof(SelectedDevice));
+                Persist();
             }
         }
 
@@ -231,6 +249,20 @@ namespace GsCan.View.Session
         {
             var listed = _port.List() ?? Array.Empty<DeviceInfo>();
             DeviceList = new List<DeviceInfo>(listed).ToArray();
+            var path = SelectedDevice?.Path;
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            foreach (var device in DeviceList)
+            {
+                if (device.Path == path)
+                {
+                    SelectedDevice = device;
+                    return;
+                }
+            }
         }
 
         public void OpenSelected()
@@ -272,10 +304,15 @@ namespace GsCan.View.Session
             for (int i = 0; i < channels.Length; i++)
             {
                 channels[i] = new ChannelState(i, isRunning: false, StartChannel, StopChannel);
+                if (i < _heldChannels.Count)
+                {
+                    ApplyChannelConfig(channels[i], _heldChannels[i]);
+                }
             }
 
             Channels = channels;
             _pumps = new ReadPump?[channels.Length];
+            Persist();
         }
 
         public void StartChannel(int index)
@@ -338,27 +375,36 @@ namespace GsCan.View.Session
 
         public void Close()
         {
+            Persist();
             if (_opened == null)
             {
                 return;
             }
 
-            DisableAllCyclic();
-            for (int i = 0; i < Channels.Count; i++)
+            _suppressPersist = true;
+            try
             {
-                if ((i < _pumps.Length && _pumps[i] != null) || Channels[i].IsRunning)
+                DisableAllCyclic();
+                for (int i = 0; i < Channels.Count; i++)
                 {
-                    StopPump(i);
-                    Channels[i].IsRunning = false;
+                    if ((i < _pumps.Length && _pumps[i] != null) || Channels[i].IsRunning)
+                    {
+                        StopPump(i);
+                        Channels[i].IsRunning = false;
+                    }
                 }
-            }
 
-            _opened.Dispose();
-            _opened = null;
-            _pumps = Array.Empty<ReadPump?>();
-            OpenedPath = null;
-            Channels = Array.Empty<ChannelState>();
-            LastError = null;
+                _opened.Dispose();
+                _opened = null;
+                _pumps = Array.Empty<ReadPump?>();
+                OpenedPath = null;
+                Channels = Array.Empty<ChannelState>();
+                LastError = null;
+            }
+            finally
+            {
+                _suppressPersist = false;
+            }
         }
 
         public void Clear()
@@ -437,6 +483,12 @@ namespace GsCan.View.Session
                 return;
             }
 
+            if (e.PropertyName == nameof(TxSlot.Enabled) && !_suppressPersist)
+            {
+                _heldEnabled[slot.Index] = slot.Enabled;
+            }
+
+            Persist();
             if (e.PropertyName != nameof(TxSlot.Enabled)
                 && e.PropertyName != nameof(TxSlot.PeriodMs)
                 && e.PropertyName != nameof(TxSlot.Channel))
@@ -447,12 +499,22 @@ namespace GsCan.View.Session
             SyncCyclic(slot);
         }
 
+        private void OnDisplayFilterPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            Persist();
+        }
+
         private void OnChannelPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             var channel = sender as ChannelState;
             if (channel == null)
             {
                 return;
+            }
+
+            if (e.PropertyName != nameof(ChannelState.IsRunning))
+            {
+                Persist();
             }
 
             if (e.PropertyName != nameof(ChannelState.ListenOnly))
@@ -803,6 +865,243 @@ namespace GsCan.View.Session
         private void Raise(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void RestoreFromStore()
+        {
+            if (_configStore == null)
+            {
+                return;
+            }
+
+            ViewConfig? config;
+            try
+            {
+                config = _configStore.Load();
+            }
+            catch
+            {
+                return;
+            }
+
+            if (config == null)
+            {
+                return;
+            }
+
+            _suppressPersist = true;
+            try
+            {
+                Restore(config);
+            }
+            finally
+            {
+                _suppressPersist = false;
+            }
+        }
+
+        private void Restore(ViewConfig config)
+        {
+            if (!string.IsNullOrEmpty(config.DevicePath))
+            {
+                SelectedDevice = new DeviceInfo(config.DevicePath, config.DeviceChannelCount);
+            }
+
+            _heldChannels.Clear();
+            if (config.Channels != null)
+            {
+                foreach (var channel in config.Channels)
+                {
+                    _heldChannels.Add(CloneChannel(channel));
+                }
+            }
+
+            RestoreDisplayFilter(config.DisplayFilter);
+            RestoreTxSlots(config.TxSlots);
+        }
+
+        private void RestoreDisplayFilter(DisplayFilterConfig? source)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            DisplayFilter.ShowChannel0 = source.ShowChannel0;
+            DisplayFilter.ShowChannel1 = source.ShowChannel1;
+            DisplayFilter.ShowRx = source.ShowRx;
+            DisplayFilter.ShowEcho = source.ShowEcho;
+            DisplayFilter.ShowError = source.ShowError;
+            DisplayFilter.ShowStandard = source.ShowStandard;
+            DisplayFilter.ShowExtended = source.ShowExtended;
+            DisplayFilter.ShowClassic = source.ShowClassic;
+            DisplayFilter.ShowFd = source.ShowFd;
+            DisplayFilter.ShowData = source.ShowData;
+            DisplayFilter.ShowRemote = source.ShowRemote;
+            DisplayFilter.IdText = source.IdText ?? string.Empty;
+        }
+
+        private void RestoreTxSlots(List<TxSlotConfig>? source)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            var count = source.Count < TxSlots.Count ? source.Count : TxSlots.Count;
+            for (int i = 0; i < count; i++)
+            {
+                var saved = source[i];
+                var slot = TxSlots[i];
+                slot.Channel = saved.Channel;
+                slot.Id = saved.Id;
+                slot.Extended = saved.Extended;
+                slot.Remote = saved.Remote;
+                slot.Fd = saved.Fd;
+                slot.BitRateSwitch = saved.BitRateSwitch;
+                slot.DataHex = saved.DataHex ?? string.Empty;
+                slot.PeriodMs = saved.PeriodMs;
+                slot.Enabled = saved.Enabled;
+                _heldEnabled[i] = saved.Enabled;
+            }
+        }
+
+        private void Persist()
+        {
+            if (_configStore == null || _suppressPersist)
+            {
+                return;
+            }
+
+            try
+            {
+                _configStore.Save(Capture());
+            }
+            catch
+            {
+                // Remembering the form is best-effort; do not crash the session.
+            }
+        }
+
+        private ViewConfig Capture()
+        {
+            return new ViewConfig
+            {
+                DevicePath = OpenedPath ?? SelectedDevice?.Path,
+                DeviceChannelCount = _opened?.ChannelCount ?? SelectedDevice?.ChannelCount ?? 0,
+                Channels = CaptureChannels(),
+                DisplayFilter = CaptureDisplayFilter(),
+                TxSlots = CaptureTxSlots()
+            };
+        }
+
+        private List<ChannelConfig> CaptureChannels()
+        {
+            var list = new List<ChannelConfig>();
+            if (Channels.Count > 0)
+            {
+                foreach (var channel in Channels)
+                {
+                    list.Add(ToChannelConfig(channel));
+                }
+
+                _heldChannels.Clear();
+                foreach (var item in list)
+                {
+                    _heldChannels.Add(CloneChannel(item));
+                }
+
+                return list;
+            }
+
+            foreach (var held in _heldChannels)
+            {
+                list.Add(CloneChannel(held));
+            }
+
+            return list;
+        }
+
+        private DisplayFilterConfig CaptureDisplayFilter()
+        {
+            return new DisplayFilterConfig
+            {
+                ShowChannel0 = DisplayFilter.ShowChannel0,
+                ShowChannel1 = DisplayFilter.ShowChannel1,
+                ShowRx = DisplayFilter.ShowRx,
+                ShowEcho = DisplayFilter.ShowEcho,
+                ShowError = DisplayFilter.ShowError,
+                ShowStandard = DisplayFilter.ShowStandard,
+                ShowExtended = DisplayFilter.ShowExtended,
+                ShowClassic = DisplayFilter.ShowClassic,
+                ShowFd = DisplayFilter.ShowFd,
+                ShowData = DisplayFilter.ShowData,
+                ShowRemote = DisplayFilter.ShowRemote,
+                IdText = DisplayFilter.IdText ?? string.Empty
+            };
+        }
+
+        private List<TxSlotConfig> CaptureTxSlots()
+        {
+            var list = new List<TxSlotConfig>(TxSlots.Count);
+            foreach (var slot in TxSlots)
+            {
+                if (_opened != null)
+                {
+                    _heldEnabled[slot.Index] = slot.Enabled;
+                }
+
+                list.Add(new TxSlotConfig
+                {
+                    Channel = slot.Channel,
+                    Id = slot.Id,
+                    Extended = slot.Extended,
+                    Remote = slot.Remote,
+                    Fd = slot.Fd,
+                    BitRateSwitch = slot.BitRateSwitch,
+                    DataHex = slot.DataHex ?? string.Empty,
+                    PeriodMs = slot.PeriodMs,
+                    Enabled = _heldEnabled[slot.Index]
+                });
+            }
+
+            return list;
+        }
+
+        private static void ApplyChannelConfig(ChannelState channel, ChannelConfig config)
+        {
+            channel.Bitrate = config.Bitrate;
+            channel.FdEnabled = config.FdEnabled;
+            channel.DataBitrate = config.DataBitrate;
+            channel.ListenOnly = config.ListenOnly;
+            channel.Loopback = config.Loopback;
+            channel.OneShot = config.OneShot;
+        }
+
+        private static ChannelConfig ToChannelConfig(ChannelState channel)
+        {
+            return new ChannelConfig
+            {
+                Bitrate = channel.Bitrate,
+                FdEnabled = channel.FdEnabled,
+                DataBitrate = channel.DataBitrate,
+                ListenOnly = channel.ListenOnly,
+                Loopback = channel.Loopback,
+                OneShot = channel.OneShot
+            };
+        }
+
+        private static ChannelConfig CloneChannel(ChannelConfig source)
+        {
+            return new ChannelConfig
+            {
+                Bitrate = source.Bitrate,
+                FdEnabled = source.FdEnabled,
+                DataBitrate = source.DataBitrate,
+                ListenOnly = source.ListenOnly,
+                Loopback = source.Loopback,
+                OneShot = source.OneShot
+            };
         }
     }
 }
