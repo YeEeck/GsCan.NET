@@ -1,18 +1,22 @@
 # GsCan.NET
 
-.NET Standard 2.0 主机库：封装 candle.dll，让托管代码接入 gs_usb。本文件只收术语，不收实现。
+.NET Standard 2.0 主机库：封装 candle.dll，让托管代码接入 gs_usb。GsCan View 寄宿在本仓库，专有术语在最后一节。本文件只收术语，不收实现。
 
 设备侧（固件）术语以 FlintCAN-FD 的 `CONTEXT.md` 为准，不在这里重复。
 
 ## Language
 
 **GsCan.NET**:
-本仓库与产品标题。它是主机库，不是 CAN 分析仪，也不是上位机应用。
-_Avoid_: 上位机, 分析仪, 适配器工具, GsCan（当实际指仓库名或产品标题时）
+仓库名与主机库的产品标题。它是主机库，不是 CAN 分析仪，也不是上位机。仓库可以寄宿 GsCan View，但这个名字仍只指库。
+_Avoid_: 上位机, 分析仪, 适配器工具, GsCan（当实际指仓库名或产品标题时）, GsCan View
 
 **GsCan**:
 公共代码身份：NuGet 包 id、程序集 `GsCan.dll`、根命名空间。
 _Avoid_: GsUsb, GsCan.NET（当实际指包 id 或命名空间时）, Candle, Candle.NET
+
+**GsCan View**:
+消费 GsCan 的桌面查看器。把 Device / Channel / CanFrame 变成一个窗口；不是分析仪，也不是 GsCan.NET。
+_Avoid_: GsCan.NET, 上位机, 分析仪, GsCan（当实际指这个窗口时）
 
 **gs_usb**:
 USB 线协议，与 Linux 内核驱动同名。Device 经 WinUSB 与主机交换控制请求和 CAN 帧。
@@ -45,3 +49,25 @@ _Avoid_: 溢出事件, 溢出异常
 **FlintCAN-FD**:
 双路隔离 CAN FD 的 gs_usb 设备；本库的第一等消费面。其他标准 gs_usb 设备（CANable、candleLight 等）保持兼容。
 _Avoid_: candleLight（当实际指这块板时）
+
+## GsCan View
+
+**Trace**:
+按到达顺序排列的每一帧。不是按 ID 覆盖。
+_Avoid_: Log（那是存盘文件）, Receive, 报文列表（当实际指 Latest 时）
+
+**Latest**:
+按键覆盖的那种看法。键是 `(Channel, Kind, Id, Extended, Remote, IsFd)`；每个键只留最新一帧并计数。BRS、ESI、Overflow、数据是该行上的最新值，不是键。
+_Avoid_: Sniffer, Overwrite, Receive, Trace（当实际指按 ID 覆盖时）
+
+**Display Filter**:
+只决定窗口里看见哪些帧。不是硬件验收滤波；库没有那种能力。
+_Avoid_: Filter（当实际指硬件滤波时）, 验收滤波, Hardware Filter
+
+**TxSlot**:
+发送表里的一行：Channel、ID、标志、数据、周期、使能。周期为 0 表示只发一次。
+_Avoid_: Message, Transmit window, 报文, CanFrame（当实际指这行配置时）
+
+**Log**:
+把 Trace 存成的 CSV 文件。第一版只写、不打开。
+_Avoid_: ASC, BLF, trc, 录波, Trace（当实际指存盘文件时）
