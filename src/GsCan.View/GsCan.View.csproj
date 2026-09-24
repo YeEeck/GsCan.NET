@@ -20,6 +20,10 @@
     <ProjectReference Include="..\GsCan\GsCan.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="GsCan.View.Tests" />
+  </ItemGroup>
+
   <!-- ProjectReference does not import NuGet build/.targets; pull them in for DllImport. -->
   <Import Project="..\GsCan\build\GsCan.targets" />
 

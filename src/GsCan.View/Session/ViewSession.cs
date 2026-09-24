@@ -136,10 +136,53 @@ namespace GsCan.View.Session
             var channels = new ChannelState[_opened.ChannelCount];
             for (int i = 0; i < channels.Length; i++)
             {
-                channels[i] = new ChannelState(i, isRunning: false);
+                channels[i] = new ChannelState(i, isRunning: false, StartChannel, StopChannel);
             }
 
             Channels = channels;
+        }
+
+        public void StartChannel(int index)
+        {
+            if (_opened == null || index < 0 || index >= Channels.Count)
+            {
+                return;
+            }
+
+            var channel = Channels[index];
+            var options = new ChannelOptions
+            {
+                Bitrate = channel.Bitrate,
+                DataBitrate = channel.FdEnabled ? channel.DataBitrate : null,
+                ListenOnly = channel.ListenOnly,
+                Loopback = channel.Loopback,
+                OneShot = channel.OneShot
+            };
+
+            try
+            {
+                _opened.Start(index, options);
+            }
+            catch (GsCanException ex)
+            {
+                LastError = ex.Message;
+                channel.IsRunning = false;
+                return;
+            }
+
+            LastError = null;
+            channel.IsRunning = true;
+        }
+
+        public void StopChannel(int index)
+        {
+            if (_opened == null || index < 0 || index >= Channels.Count)
+            {
+                return;
+            }
+
+            _opened.Stop(index);
+            Channels[index].IsRunning = false;
         }
 
         public void Close()
@@ -147,6 +190,15 @@ namespace GsCan.View.Session
             if (_opened == null)
             {
                 return;
+            }
+
+            foreach (var channel in Channels)
+            {
+                if (channel.IsRunning)
+                {
+                    _opened.Stop(channel.Index);
+                    channel.IsRunning = false;
+                }
             }
 
             _opened.Dispose();
