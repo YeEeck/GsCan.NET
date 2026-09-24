@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using GsCan;
 using GsCan.View.Session;
 
@@ -43,12 +45,26 @@ namespace GsCan.View.Tests.Fakes
     internal sealed class FakeOpenedDevice : IOpenedDevice
     {
         private readonly FakeGsCanPort _port;
+        private readonly ConcurrentQueue<CanFrame>[] _rx;
+        private readonly AutoResetEvent[] _rxSignals;
+        private readonly bool[] _started;
+        private readonly bool[] _listenOnly;
+        private readonly List<(int Channel, CanFrame Frame)> _sent = new List<(int, CanFrame)>();
 
         public FakeOpenedDevice(string path, int channelCount, FakeGsCanPort port)
         {
             Path = path;
             ChannelCount = channelCount;
             _port = port;
+            _rx = new ConcurrentQueue<CanFrame>[channelCount];
+            _rxSignals = new AutoResetEvent[channelCount];
+            _started = new bool[channelCount];
+            _listenOnly = new bool[channelCount];
+            for (int i = 0; i < channelCount; i++)
+            {
+                _rx[i] = new ConcurrentQueue<CanFrame>();
+                _rxSignals[i] = new AutoResetEvent(false);
+            }
         }
 
         public int ChannelCount { get; }
@@ -60,6 +76,23 @@ namespace GsCan.View.Tests.Fakes
         public Dictionary<int, ChannelOptions> LastStartOptions { get; } = new Dictionary<int, ChannelOptions>();
         public Exception? StartException { get; set; }
 
+        public IReadOnlyList<(int Channel, CanFrame Frame)> Sent
+        {
+            get
+            {
+                lock (_sent)
+                {
+                    return _sent.ToArray();
+                }
+            }
+        }
+
+        public void Enqueue(int channelIndex, CanFrame frame)
+        {
+            _rx[channelIndex].Enqueue(frame);
+            _rxSignals[channelIndex].Set();
+        }
+
         public void Start(int channelIndex, ChannelOptions options)
         {
             StartCallCount++;
@@ -69,27 +102,74 @@ namespace GsCan.View.Tests.Fakes
             {
                 throw StartException;
             }
+
+            _started[channelIndex] = true;
+            _listenOnly[channelIndex] = options.ListenOnly;
         }
 
         public void Stop(int channelIndex)
         {
             StopCallCount++;
             StoppedIndexes.Add(channelIndex);
+            _started[channelIndex] = false;
+            _rxSignals[channelIndex].Set();
         }
 
         public void Send(int channelIndex, CanFrame frame)
         {
-            throw new InvalidOperationException("Ticket 02 must not Send.");
+            if (!_started[channelIndex])
+            {
+                throw new GsCanException("Channel is not started.");
+            }
+
+            if (_listenOnly[channelIndex])
+            {
+                throw new GsCanException("Cannot send on a listen-only channel.");
+            }
+
+            lock (_sent)
+            {
+                _sent.Add((channelIndex, frame));
+            }
         }
 
         public bool TryRead(int channelIndex, int timeoutMilliseconds, out CanFrame frame)
         {
+            if (_rx[channelIndex].TryDequeue(out frame))
+            {
+                return true;
+            }
+
+            if (timeoutMilliseconds <= 0)
+            {
+                frame = default;
+                return false;
+            }
+
+            var remaining = timeoutMilliseconds;
+            var clock = Stopwatch.StartNew();
+            while (remaining > 0)
+            {
+                _rxSignals[channelIndex].WaitOne(remaining);
+                if (_rx[channelIndex].TryDequeue(out frame))
+                {
+                    return true;
+                }
+
+                remaining = timeoutMilliseconds - (int)clock.ElapsedMilliseconds;
+            }
+
             frame = default;
-            throw new InvalidOperationException("Ticket 02 must not TryRead.");
+            return false;
         }
 
         public void Dispose()
         {
+            for (int i = 0; i < _rxSignals.Length; i++)
+            {
+                _rxSignals[i].Set();
+            }
+
             _port.RecordDispose();
         }
     }
