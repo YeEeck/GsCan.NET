@@ -8,8 +8,12 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 勾选/ID 条件只影响看见什么；泵仍接收未显示的帧
-- [ ] 可单独关掉 Kind=Echo；可只看一路 Channel
-- [ ] ID 支持单个十六进制与闭区间；非法输入有说明、不崩溃
-- [ ] 若 Latest 已存在，同一套 Display Filter 对两种看法生效
-- [ ] 会话面测试覆盖显隐，不要求实机
+- [x] 勾选/ID 条件只影响看见什么；泵仍接收未显示的帧
+- [x] 可单独关掉 Kind=Echo；可只看一路 Channel
+- [x] ID 支持单个十六进制与闭区间；非法输入有说明、不崩溃
+- [x] 若 Latest 已存在，同一套 Display Filter 对两种看法生效
+- [x] 会话面测试覆盖显隐，不要求实机
+
+## Comments
+
+- Implemented on `feat/gscan-view-06-display-filter` (`1628086`), merged to `feat/gscan-view-v1`. Filter runs after pause, before PublishRow, so Trace and Latest share it. Filtered frames do not increment PauseDroppedCount.
