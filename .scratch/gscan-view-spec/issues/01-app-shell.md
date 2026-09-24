@@ -8,7 +8,11 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 启动后窗口标题为「GsCan View」，不是 GsCan.NET，也不是 FlintCAN
-- [ ] 可见文字为中文；Echo / Trace / Latest / Kind 若出现则保持英文
-- [ ] 单窗口，不对接、没有第二窗口
-- [ ] 测试项目能构造会话面；无设备时测试通过（不要求实机）
+- [x] 启动后窗口标题为「GsCan View」，不是 GsCan.NET，也不是 FlintCAN
+- [x] 可见文字为中文；Echo / Trace / Latest / Kind 若出现则保持英文
+- [x] 单窗口，不对接、没有第二窗口
+- [x] 测试项目能构造会话面；无设备时测试通过（不要求实机）
+
+## Comments
+
+- Implemented on `feat/gscan-view-01-app-shell` (`6ecc81c`), merged to `feat/gscan-view-v1`. Session constructible with `FakeGsCanPort`; window title bound to `ViewSession.WindowTitle`. USB List/Open still later tickets.
