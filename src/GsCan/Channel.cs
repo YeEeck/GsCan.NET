@@ -67,7 +67,14 @@ namespace GsCan
                     }
                 }
 
-                uint flags = NativeMethods.CANDLE_MODE_HW_TIMESTAMP;
+                uint flags = 0;
+                CandleCapability cap;
+                if (NativeMethods.candle_channel_get_capabilities(handle, ch, out cap)
+                    && (cap.feature & NativeMethods.CANDLE_FEATURE_HW_TIMESTAMP) != 0)
+                {
+                    flags |= NativeMethods.CANDLE_MODE_HW_TIMESTAMP;
+                }
+
                 if (useFd)
                 {
                     flags |= NativeMethods.CANDLE_MODE_FD;

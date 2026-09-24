@@ -792,6 +792,7 @@ DLL bool __stdcall candle_channel_start(candle_handle hdev, uint8_t ch, uint32_t
     if (cap->feature & CANDLE_FEATURE_HW_TIMESTAMP) {
         flags |= CANDLE_MODE_HW_TIMESTAMP;
     } else {
+        flags &= ~CANDLE_MODE_HW_TIMESTAMP;
         candle_logf(L"channel %u has no HW timestamp capability; starting without timestamp flag", ch);
     }
 

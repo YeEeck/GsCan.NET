@@ -116,6 +116,47 @@ namespace GsCan.Tests
                         DataBitrate = 123456,
                         Loopback = true
                     }));
+                Assert.Throws<GsCanException>(() =>
+                    ch.Start(new ChannelOptions
+                    {
+                        Bitrate = 500000,
+                        DataBitrate = 5000000,
+                        Loopback = true
+                    }));
+            }
+        }
+
+        [Fact]
+        public void Loopback_Send_Fd_at_4M_data_bitrate()
+        {
+            if (!TryOpenFirst(out var device))
+            {
+                Console.WriteLine("SKIP FD 4M loopback: no gs_usb device present.");
+                return;
+            }
+
+            using (device!)
+            {
+                var ch = device.Channels[0];
+                ch.Start(new ChannelOptions
+                {
+                    Bitrate = 500000,
+                    DataBitrate = 4000000,
+                    Loopback = true
+                });
+                try
+                {
+                    var payload = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD };
+                    ch.Send(CanFrame.Fd(0x321, payload));
+
+                    var got = Drain(ch, expectedMin: 1, timeoutMs: 500);
+                    Assert.True(got.Count >= 1, "expected at least one Echo or Rx FD frame, got " + got.Count);
+                    Assert.Contains(got, f => f.IsFd && f.Id == 0x321u && f.Data.SequenceEqual(payload));
+                }
+                finally
+                {
+                    ch.Stop();
+                }
             }
         }
 

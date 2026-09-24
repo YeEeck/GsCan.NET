@@ -53,6 +53,10 @@ namespace GsCan.Native
 
         [DllImport(DllName, CallingConvention = CallingConvention.StdCall)]
         [return: MarshalAs(UnmanagedType.U1)]
+        public static extern bool candle_channel_get_capabilities(IntPtr hdev, byte ch, out CandleCapability cap);
+
+        [DllImport(DllName, CallingConvention = CallingConvention.StdCall)]
+        [return: MarshalAs(UnmanagedType.U1)]
         public static extern bool candle_channel_set_bitrate(IntPtr hdev, byte ch, uint bitrate);
 
         [DllImport(DllName, CallingConvention = CallingConvention.StdCall)]
@@ -88,6 +92,8 @@ namespace GsCan.Native
         public const uint CANDLE_MODE_ONE_SHOT = 0x0008;
         public const uint CANDLE_MODE_HW_TIMESTAMP = 0x0010;
         public const uint CANDLE_MODE_FD = 0x0100;
+
+        public const uint CANDLE_FEATURE_HW_TIMESTAMP = 0x0010;
 
         public const uint CANDLE_ID_EXTENDED = 0x80000000;
         public const uint CANDLE_ID_RTR = 0x40000000;
@@ -151,7 +157,7 @@ namespace GsCan.Native
 
         /// <summary>
         /// 48 MHz / same style as candle_channel_set_bitrate (sync_seg implicit).
-        /// Supports at least 1M and 2M data bitrates for FlintCAN-FD.
+        /// Supports 1M, 2M, and 4M data bitrates. 5M does not divide 48 MHz.
         /// </summary>
         public static bool TryGetDataBittiming(int dataBitrate, out CandleBittiming timing)
         {
@@ -179,11 +185,32 @@ namespace GsCan.Native
                     timing.brp = 2;
                     return true;
 
+                case 4000000:
+                    // same 12-tq as 2M; 48e6 / (1 * 12) = 4M
+                    timing.phase_seg1 = 8;
+                    timing.brp = 1;
+                    return true;
+
                 default:
                     timing = default;
                     return false;
             }
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    internal struct CandleCapability
+    {
+        public uint feature;
+        public uint fclk_can;
+        public uint tseg1_min;
+        public uint tseg1_max;
+        public uint tseg2_min;
+        public uint tseg2_max;
+        public uint sjw_max;
+        public uint brp_min;
+        public uint brp_max;
+        public uint brp_inc;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
