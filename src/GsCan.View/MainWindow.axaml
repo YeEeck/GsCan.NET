@@ -144,53 +144,106 @@
                 BorderThickness="0,0,0,1">
             <DockPanel>
                 <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
-                    <TextBlock FontWeight="SemiBold" VerticalAlignment="Center" Text="Trace" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <RadioButton Content="Trace"
+                                     GroupName="ReceiveMode"
+                                     FontWeight="SemiBold"
+                                     IsChecked="{Binding IsTraceMode}" />
+                        <RadioButton Content="Latest"
+                                     GroupName="ReceiveMode"
+                                     FontWeight="SemiBold"
+                                     IsChecked="{Binding IsLatestMode}" />
+                    </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                         <CheckBox Content="暂停" IsChecked="{Binding Paused}" VerticalAlignment="Center" />
                         <Button Content="清空" Command="{Binding Clear}" />
                     </StackPanel>
                 </Grid>
                 <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Grid ColumnDefinitions="80,56,56,80,36,36,36,36,36,72,44,*" Margin="4,0,20,4">
-                        <TextBlock Text="相对时间" />
-                        <TextBlock Grid.Column="1" Text="Channel" />
-                        <TextBlock Grid.Column="2" Text="Kind" />
-                        <TextBlock Grid.Column="3" Text="ID" />
-                        <TextBlock Grid.Column="4" Text="Ext" />
-                        <TextBlock Grid.Column="5" Text="RTR" />
-                        <TextBlock Grid.Column="6" Text="FD" />
-                        <TextBlock Grid.Column="7" Text="BRS" />
-                        <TextBlock Grid.Column="8" Text="ESI" />
-                        <TextBlock Grid.Column="9" Text="Overflow" />
-                        <TextBlock Grid.Column="10" Text="长度" />
-                        <TextBlock Grid.Column="11" Text="数据" />
+                    <Grid IsVisible="{Binding IsTraceMode}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid ColumnDefinitions="80,56,56,80,36,36,36,36,36,72,44,*" Margin="4,0,20,4">
+                            <TextBlock Text="相对时间" />
+                            <TextBlock Grid.Column="1" Text="Channel" />
+                            <TextBlock Grid.Column="2" Text="Kind" />
+                            <TextBlock Grid.Column="3" Text="ID" />
+                            <TextBlock Grid.Column="4" Text="Ext" />
+                            <TextBlock Grid.Column="5" Text="RTR" />
+                            <TextBlock Grid.Column="6" Text="FD" />
+                            <TextBlock Grid.Column="7" Text="BRS" />
+                            <TextBlock Grid.Column="8" Text="ESI" />
+                            <TextBlock Grid.Column="9" Text="Overflow" />
+                            <TextBlock Grid.Column="10" Text="长度" />
+                            <TextBlock Grid.Column="11" Text="数据" />
+                        </Grid>
+                        <ListBox x:Name="TraceList"
+                                 Grid.Row="1"
+                                 ItemsSource="{Binding Trace}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="session:FrameRow">
+                                    <Grid ColumnDefinitions="80,56,56,80,36,36,36,36,36,72,44,*">
+                                        <TextBlock Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Channel}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Kind}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding IdHex}" />
+                                        <CheckBox Grid.Column="4" IsChecked="{Binding Extended, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="5" IsChecked="{Binding Remote, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="6" IsChecked="{Binding IsFd, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="7" IsChecked="{Binding BitRateSwitch, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="8" IsChecked="{Binding ErrorStateIndicator, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="9" IsChecked="{Binding Overflow, Mode=OneWay}" IsEnabled="False" />
+                                        <TextBlock Grid.Column="10" Text="{Binding Length}" />
+                                        <TextBlock Grid.Column="11" Text="{Binding DataHex}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
                     </Grid>
-                    <ListBox x:Name="TraceList"
-                             Grid.Row="1"
-                             ItemsSource="{Binding Trace}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="session:FrameRow">
-                                <Grid ColumnDefinitions="80,56,56,80,36,36,36,36,36,72,44,*">
-                                    <TextBlock Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Channel}" />
-                                    <TextBlock Grid.Column="2" Text="{Binding Kind}" />
-                                    <TextBlock Grid.Column="3" Text="{Binding IdHex}" />
-                                    <CheckBox Grid.Column="4" IsChecked="{Binding Extended, Mode=OneWay}" IsEnabled="False" />
-                                    <CheckBox Grid.Column="5" IsChecked="{Binding Remote, Mode=OneWay}" IsEnabled="False" />
-                                    <CheckBox Grid.Column="6" IsChecked="{Binding IsFd, Mode=OneWay}" IsEnabled="False" />
-                                    <CheckBox Grid.Column="7" IsChecked="{Binding BitRateSwitch, Mode=OneWay}" IsEnabled="False" />
-                                    <CheckBox Grid.Column="8" IsChecked="{Binding ErrorStateIndicator, Mode=OneWay}" IsEnabled="False" />
-                                    <CheckBox Grid.Column="9" IsChecked="{Binding Overflow, Mode=OneWay}" IsEnabled="False" />
-                                    <TextBlock Grid.Column="10" Text="{Binding Length}" />
-                                    <TextBlock Grid.Column="11" Text="{Binding DataHex}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <Grid IsVisible="{Binding IsLatestMode}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid ColumnDefinitions="80,56,56,48,80,36,36,36,36,36,72,44,*" Margin="4,0,20,4">
+                            <TextBlock Text="相对时间" />
+                            <TextBlock Grid.Column="1" Text="Channel" />
+                            <TextBlock Grid.Column="2" Text="Kind" />
+                            <TextBlock Grid.Column="3" Text="计数" />
+                            <TextBlock Grid.Column="4" Text="ID" />
+                            <TextBlock Grid.Column="5" Text="Ext" />
+                            <TextBlock Grid.Column="6" Text="RTR" />
+                            <TextBlock Grid.Column="7" Text="FD" />
+                            <TextBlock Grid.Column="8" Text="BRS" />
+                            <TextBlock Grid.Column="9" Text="ESI" />
+                            <TextBlock Grid.Column="10" Text="Overflow" />
+                            <TextBlock Grid.Column="11" Text="长度" />
+                            <TextBlock Grid.Column="12" Text="数据" />
+                        </Grid>
+                        <ListBox Grid.Row="1" ItemsSource="{Binding Latest}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="session:LatestRow">
+                                    <Grid ColumnDefinitions="80,56,56,48,80,36,36,36,36,36,72,44,*">
+                                        <TextBlock Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Channel}" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Kind}" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Count}" />
+                                        <TextBlock Grid.Column="4" Text="{Binding IdHex}" />
+                                        <CheckBox Grid.Column="5" IsChecked="{Binding Extended, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="6" IsChecked="{Binding Remote, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="7" IsChecked="{Binding IsFd, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="8" IsChecked="{Binding BitRateSwitch, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="9" IsChecked="{Binding ErrorStateIndicator, Mode=OneWay}" IsEnabled="False" />
+                                        <CheckBox Grid.Column="10" IsChecked="{Binding Overflow, Mode=OneWay}" IsEnabled="False" />
+                                        <TextBlock Grid.Column="11" Text="{Binding Length}" />
+                                        <TextBlock Grid.Column="12" Text="{Binding DataHex}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
                 </Grid>
             </DockPanel>
         </Border>

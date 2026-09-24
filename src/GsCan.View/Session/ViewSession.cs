@@ -14,6 +14,7 @@ namespace GsCan.View.Session
         private readonly IGsCanPort _port;
         private readonly bool _runBackgroundPumps;
         private readonly TraceBuffer _trace;
+        private readonly LatestView _latest;
         private readonly Dictionary<int, uint> _timeOriginByChannel = new Dictionary<int, uint>();
         private readonly SynchronizationContext? _ui;
         private readonly object _pendingLock = new object();
@@ -25,6 +26,7 @@ namespace GsCan.View.Session
         private string? _openedPath;
         private string? _lastError;
         private DeviceInfo? _selectedDevice;
+        private ReceiveMode _receiveMode;
         private volatile bool _paused;
         private int _pauseDroppedCount;
         private int _pendingDrops;
@@ -43,7 +45,9 @@ namespace GsCan.View.Session
             _deviceList = Array.Empty<DeviceInfo>();
             _channels = Array.Empty<ChannelState>();
             Trace = new ObservableCollection<FrameRow>();
+            Latest = new ObservableCollection<LatestRow>();
             _trace = new TraceBuffer(Trace);
+            _latest = new LatestView(Latest);
             var slots = new TxSlot[TxSlot.SlotCount];
             for (int i = 0; i < slots.Length; i++)
             {
@@ -123,6 +127,49 @@ namespace GsCan.View.Session
         }
 
         public ObservableCollection<FrameRow> Trace { get; }
+
+        public ObservableCollection<LatestRow> Latest { get; }
+
+        public ReceiveMode ReceiveMode
+        {
+            get => _receiveMode;
+            set
+            {
+                if (_receiveMode == value)
+                {
+                    return;
+                }
+
+                _receiveMode = value;
+                Raise(nameof(ReceiveMode));
+                Raise(nameof(IsTraceMode));
+                Raise(nameof(IsLatestMode));
+            }
+        }
+
+        public bool IsTraceMode
+        {
+            get => ReceiveMode == ReceiveMode.Trace;
+            set
+            {
+                if (value)
+                {
+                    ReceiveMode = ReceiveMode.Trace;
+                }
+            }
+        }
+
+        public bool IsLatestMode
+        {
+            get => ReceiveMode == ReceiveMode.Latest;
+            set
+            {
+                if (value)
+                {
+                    ReceiveMode = ReceiveMode.Latest;
+                }
+            }
+        }
 
         public IReadOnlyList<TxSlot> TxSlots { get; }
 
@@ -283,6 +330,7 @@ namespace GsCan.View.Session
         public void Clear()
         {
             _trace.Clear();
+            _latest.Clear();
         }
 
         public void SendOnce(int slotIndex)
@@ -450,6 +498,7 @@ namespace GsCan.View.Session
             if (!ShouldMarshalToUi)
             {
                 _trace.Append(row);
+                _latest.Observe(row);
                 return;
             }
 
@@ -502,6 +551,7 @@ namespace GsCan.View.Session
             foreach (var row in rows)
             {
                 _trace.Append(row);
+                _latest.Observe(row);
             }
 
             if (drops != 0)
