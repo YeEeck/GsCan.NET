@@ -13,6 +13,7 @@ namespace GsCan.View
     {
         private readonly ViewSession _session;
         private bool _latestStickToBottom = true;
+        private bool _tracePinPosted;
 
         public MainWindow()
             : this(new ViewSession(new GsCanPort(), FileConfigStore.InLocalAppData()))
@@ -26,7 +27,7 @@ namespace GsCan.View
             DataContext = _session;
             Closed += (_, _) => _session.Close();
             LatestList.AddHandler(ScrollViewer.ScrollChangedEvent, OnLatestScrollChanged);
-            _session.Trace.CollectionChanged += OnTraceChanged;
+            _session.TraceDisplay.CollectionChanged += OnTraceChanged;
             _session.Latest.CollectionChanged += OnLatestChanged;
             _session.RefreshDevices();
         }
@@ -84,7 +85,17 @@ namespace GsCan.View
 
         private void OnTraceChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            PinToBottom(TraceList);
+            if (_tracePinPosted)
+            {
+                return;
+            }
+
+            _tracePinPosted = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                _tracePinPosted = false;
+                PinToBottomNow(TraceList);
+            }, DispatcherPriority.Background);
         }
 
         private void OnLatestChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -92,24 +103,21 @@ namespace GsCan.View
             StickToLast(LatestList, () => _latestStickToBottom, () => _session.Latest.Count == 0 ? null : _session.Latest[_session.Latest.Count - 1]);
         }
 
-        private static void PinToBottom(ListBox list)
+        private static void PinToBottomNow(ListBox list)
         {
-            Dispatcher.UIThread.Post(() =>
+            var scroll = list.Scroll;
+            if (scroll == null)
             {
-                var scroll = list.Scroll;
-                if (scroll == null)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var y = scroll.Extent.Height - scroll.Viewport.Height;
-                if (y < 0)
-                {
-                    y = 0;
-                }
+            var y = scroll.Extent.Height - scroll.Viewport.Height;
+            if (y < 0)
+            {
+                y = 0;
+            }
 
-                scroll.Offset = new Vector(scroll.Offset.X, y);
-            }, DispatcherPriority.Background);
+            scroll.Offset = new Vector(scroll.Offset.X, y);
         }
 
         private static void StickToLast(ListBox list, Func<bool> stickToBottom, Func<object?> lastItem)

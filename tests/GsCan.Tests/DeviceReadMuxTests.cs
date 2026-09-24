@@ -26,6 +26,42 @@ namespace GsCan.Tests
         }
 
         [Fact]
+        public void Foreign_queue_drops_oldest_when_over_capacity()
+        {
+            var mux = new DeviceReadMux(2);
+            var usb = new FakeUsb();
+            int extra = 10;
+            int total = DeviceReadMux.MaxQueuedFramesPerChannel + extra;
+            for (int i = 0; i < total; i++)
+            {
+                usb.Push(1, Frame((uint)i, CanFrameKind.Rx));
+            }
+
+            for (int i = 0; i < total; i++)
+            {
+                Assert.False(Read(mux, usb, 0, 0, out _));
+            }
+
+            int n = 0;
+            uint firstId = 0;
+            uint lastId = 0;
+            while (Read(mux, usb, 1, 0, out var frame))
+            {
+                if (n == 0)
+                {
+                    firstId = frame.Id;
+                }
+
+                lastId = frame.Id;
+                n++;
+            }
+
+            Assert.Equal(DeviceReadMux.MaxQueuedFramesPerChannel, n);
+            Assert.Equal((uint)extra, firstId);
+            Assert.Equal((uint)(total - 1), lastId);
+        }
+
+        [Fact]
         public void Queued_rx_is_readable_while_peer_channel_waits_on_usb()
         {
             var mux = new DeviceReadMux(2);

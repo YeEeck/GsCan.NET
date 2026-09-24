@@ -15,6 +15,7 @@ namespace GsCan
     internal sealed class DeviceReadMux
     {
         internal const int NativeWaitSliceMs = 50;
+        internal const int MaxQueuedFramesPerChannel = 8192;
 
         private readonly Queue<CanFrame>[] _queues;
         private readonly object _queueLock = new object();
@@ -275,7 +276,13 @@ namespace GsCan
             {
                 lock (_queueLock)
                 {
-                    _queues[frameChannel].Enqueue(nativeFrame);
+                    Queue<CanFrame> queued = _queues[frameChannel];
+                    if (queued.Count >= MaxQueuedFramesPerChannel)
+                    {
+                        queued.Dequeue();
+                    }
+
+                    queued.Enqueue(nativeFrame);
                     Monitor.PulseAll(_queueLock);
                 }
             }

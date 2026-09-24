@@ -13,6 +13,15 @@ namespace GsCan.View.Session
 
     public sealed class LatestRow : INotifyPropertyChanged
     {
+        private static readonly PropertyChangedEventArgs CountArgs = new PropertyChangedEventArgs(nameof(Count));
+        private static readonly PropertyChangedEventArgs RelativeArgs = new PropertyChangedEventArgs(nameof(RelativeMilliseconds));
+        private static readonly PropertyChangedEventArgs BrsArgs = new PropertyChangedEventArgs(nameof(BitRateSwitch));
+        private static readonly PropertyChangedEventArgs EsiArgs = new PropertyChangedEventArgs(nameof(ErrorStateIndicator));
+        private static readonly PropertyChangedEventArgs OverflowArgs = new PropertyChangedEventArgs(nameof(Overflow));
+        private static readonly PropertyChangedEventArgs LengthArgs = new PropertyChangedEventArgs(nameof(Length));
+        private static readonly PropertyChangedEventArgs DataArgs = new PropertyChangedEventArgs(nameof(DataHex));
+        private static readonly PropertyChangedEventArgs TimestampArgs = new PropertyChangedEventArgs(nameof(TimestampMicroseconds));
+
         private FrameRow _frame;
         private int _count;
 
@@ -40,23 +49,36 @@ namespace GsCan.View.Session
         public string DataHex => _frame.DataHex;
         public uint TimestampMicroseconds => _frame.TimestampMicroseconds;
 
+        internal bool IsDirty { get; set; }
+
         internal void Observe(FrameRow frame)
         {
-            _frame = frame ?? throw new ArgumentNullException(nameof(frame));
-            _count++;
-            Raise(nameof(Count));
-            Raise(nameof(RelativeMilliseconds));
-            Raise(nameof(BitRateSwitch));
-            Raise(nameof(ErrorStateIndicator));
-            Raise(nameof(Overflow));
-            Raise(nameof(Length));
-            Raise(nameof(DataHex));
-            Raise(nameof(TimestampMicroseconds));
+            Apply(frame, 1);
+            Publish();
         }
 
-        private void Raise(string propertyName)
+        internal void Apply(FrameRow frame, int add)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            _frame = frame ?? throw new ArgumentNullException(nameof(frame));
+            _count += add;
+        }
+
+        internal void Publish()
+        {
+            var handler = PropertyChanged;
+            if (handler == null)
+            {
+                return;
+            }
+
+            handler(this, CountArgs);
+            handler(this, RelativeArgs);
+            handler(this, BrsArgs);
+            handler(this, EsiArgs);
+            handler(this, OverflowArgs);
+            handler(this, LengthArgs);
+            handler(this, DataArgs);
+            handler(this, TimestampArgs);
         }
     }
 
@@ -64,6 +86,7 @@ namespace GsCan.View.Session
     {
         private readonly ObservableCollection<LatestRow> _rows;
         private readonly Dictionary<Key, LatestRow> _byKey = new Dictionary<Key, LatestRow>();
+        private readonly List<LatestRow> _dirty = new List<LatestRow>();
 
         public LatestView(ObservableCollection<LatestRow> rows)
         {
@@ -84,10 +107,54 @@ namespace GsCan.View.Session
             _rows.Add(created);
         }
 
+        public void ObserveMany(IReadOnlyList<FrameRow> rows)
+        {
+            if (rows == null || rows.Count == 0)
+            {
+                return;
+            }
+
+            if (rows.Count == 1)
+            {
+                Observe(rows[0]);
+                return;
+            }
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                var key = Key.From(row);
+                if (_byKey.TryGetValue(key, out var existing))
+                {
+                    existing.Apply(row, 1);
+                    if (!existing.IsDirty)
+                    {
+                        existing.IsDirty = true;
+                        _dirty.Add(existing);
+                    }
+
+                    continue;
+                }
+
+                var created = new LatestRow(row);
+                _byKey.Add(key, created);
+                _rows.Add(created);
+            }
+
+            for (int i = 0; i < _dirty.Count; i++)
+            {
+                _dirty[i].Publish();
+                _dirty[i].IsDirty = false;
+            }
+
+            _dirty.Clear();
+        }
+
         public void Clear()
         {
             _rows.Clear();
             _byKey.Clear();
+            _dirty.Clear();
         }
 
         private readonly struct Key : IEquatable<Key>

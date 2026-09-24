@@ -14,12 +14,14 @@ namespace GsCan.View.Session
         private readonly IGsCanPort _port;
         private readonly IConfigStore? _configStore;
         private readonly bool _runBackgroundPumps;
+        private readonly bool _marshalToUi;
+        private readonly IClock _clock;
         private readonly TraceBuffer _trace;
         private readonly LatestView _latest;
         private readonly Dictionary<int, uint> _timeOriginByChannel = new Dictionary<int, uint>();
         private readonly SynchronizationContext? _ui;
         private readonly object _pendingLock = new object();
-        private readonly List<FrameRow> _pendingRows = new List<FrameRow>();
+        private readonly Queue<FrameRow> _pendingRows = new Queue<FrameRow>();
         private readonly TxScheduler _scheduler;
         private readonly List<ChannelConfig> _heldChannels = new List<ChannelConfig>();
         private readonly List<bool> _heldEnabled = new List<bool>();
@@ -36,6 +38,7 @@ namespace GsCan.View.Session
         private int _pauseDroppedCount;
         private int _pendingDrops;
         private bool _flushPosted;
+        private IDisposable? _flushDelay;
 
         public ViewSession(IGsCanPort port)
             : this(port, runBackgroundPumps: true)
@@ -57,19 +60,22 @@ namespace GsCan.View.Session
         {
         }
 
-        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null, IConfigStore? configStore = null)
+        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null, IConfigStore? configStore = null, bool marshalToUi = false)
         {
             _port = port ?? throw new ArgumentNullException(nameof(port));
             _configStore = configStore;
             _runBackgroundPumps = runBackgroundPumps;
             _ui = SynchronizationContext.Current;
+            _marshalToUi = marshalToUi || (runBackgroundPumps && _ui != null);
+            _clock = clock ?? new RealtimeClock();
             _deviceList = Array.Empty<DeviceInfo>();
             _channels = Array.Empty<ChannelState>();
-            Trace = new ObservableCollection<FrameRow>();
+            Trace = new TraceRows(TraceBuffer.Capacity);
+            TraceDisplay = new ObservableCollection<FrameRowView>();
             Latest = new ObservableCollection<LatestRow>();
             _trace = new TraceBuffer(Trace);
             _latest = new LatestView(Latest);
-            _scheduler = new TxScheduler(clock ?? new RealtimeClock(), CyclicSend);
+            _scheduler = new TxScheduler(_clock, CyclicSend);
             TxSlots = new ObservableCollection<TxSlot>();
             AppendSlot();
             DisplayFilter = new DisplayFilter();
@@ -170,7 +176,9 @@ namespace GsCan.View.Session
             }
         }
 
-        public ObservableCollection<FrameRow> Trace { get; }
+        public TraceRows Trace { get; }
+
+        public ObservableCollection<FrameRowView> TraceDisplay { get; }
 
         public ObservableCollection<LatestRow> Latest { get; }
 
@@ -261,6 +269,11 @@ namespace GsCan.View.Session
 
         public void RefreshDevices()
         {
+            if (_opened != null)
+            {
+                return;
+            }
+
             var listed = _port.List() ?? Array.Empty<DeviceInfo>();
             var snapshot = new List<DeviceInfo>(listed).ToArray();
             if (!SameDeviceList(_deviceList, snapshot))
@@ -394,6 +407,8 @@ namespace GsCan.View.Session
 
         public void Close()
         {
+            CancelFlushDelay();
+            DisableAllCyclic();
             Persist();
             if (_opened == null)
             {
@@ -428,7 +443,15 @@ namespace GsCan.View.Session
 
         public void Clear()
         {
+            lock (_pendingLock)
+            {
+                _pendingRows.Clear();
+                _pendingDrops = 0;
+            }
+
+            CancelFlushDelay();
             _trace.Clear();
+            TraceDisplay.Clear();
             _latest.Clear();
         }
 
@@ -476,27 +499,74 @@ namespace GsCan.View.Session
 
         public void SendOnce(int slotIndex)
         {
-            if (_opened == null || slotIndex < 0 || slotIndex >= TxSlots.Count)
+            if (!TrySendSlot(slotIndex, out var error, out var stopCyclic))
+            {
+                if (error != null)
+                {
+                    LastError = error;
+                    if (stopCyclic)
+                    {
+                        DisableSlot(slotIndex);
+                    }
+                }
+
+                return;
+            }
+
+            LastError = null;
+        }
+
+        private void CyclicSend(int slotIndex)
+        {
+            if (TrySendSlot(slotIndex, out var error, out var stopCyclic) || error == null)
             {
                 return;
+            }
+
+            void Fail()
+            {
+                LastError = error;
+                if (stopCyclic)
+                {
+                    DisableSlot(slotIndex);
+                }
+            }
+
+            if (ShouldMarshalToUi)
+            {
+                _ui!.Post(_ => Fail(), null);
+            }
+            else
+            {
+                Fail();
+            }
+        }
+
+        private bool TrySendSlot(int slotIndex, out string? error, out bool stopCyclic)
+        {
+            error = null;
+            stopCyclic = false;
+            if (_opened == null || slotIndex < 0 || slotIndex >= TxSlots.Count)
+            {
+                return false;
             }
 
             var slot = TxSlots[slotIndex];
             if (slot.Channel < 0 || slot.Channel >= Channels.Count)
             {
-                return;
+                return false;
             }
 
             var channel = Channels[slot.Channel];
             if (!channel.IsRunning)
             {
-                return;
+                return false;
             }
 
             if (channel.ListenOnly)
             {
-                LastError = "只听通道不能发送。";
-                return;
+                error = "只听通道不能发送。";
+                return false;
             }
 
             var frame = new CanFrame(
@@ -511,23 +581,25 @@ namespace GsCan.View.Session
             try
             {
                 _opened.Send(slot.Channel, frame);
-                LastError = null;
+                return true;
             }
             catch (GsCanException ex)
             {
-                LastError = ex.Message;
+                error = ex.Message;
+                stopCyclic = true;
+                return false;
             }
         }
 
-        private void CyclicSend(int slotIndex)
+        private void DisableSlot(int slotIndex)
         {
-            if (ShouldMarshalToUi)
+            if (slotIndex >= 0 && slotIndex < TxSlots.Count)
             {
-                _ui!.Post(_ => SendOnce(slotIndex), null);
-            }
-            else
-            {
-                SendOnce(slotIndex);
+                var slot = TxSlots[slotIndex];
+                if (slot.Enabled)
+                {
+                    slot.Enabled = false;
+                }
             }
         }
 
@@ -620,6 +692,39 @@ namespace GsCan.View.Session
             }
         }
 
+        private void HaltCyclicOnError(int channelIndex)
+        {
+            bool any = false;
+            foreach (var slot in TxSlots)
+            {
+                if (slot.Channel == channelIndex && slot.Enabled)
+                {
+                    any = true;
+                    break;
+                }
+            }
+
+            if (!any)
+            {
+                return;
+            }
+
+            void Halt()
+            {
+                DisableCyclicOnChannel(channelIndex);
+                LastError = "CH" + channelIndex + " 出现错误帧，已停止该路周期发送。";
+            }
+
+            if (ShouldMarshalToUi)
+            {
+                _ui!.Post(_ => Halt(), null);
+            }
+            else
+            {
+                Halt();
+            }
+        }
+
         private void DisableCyclicOnChannel(int channelIndex)
         {
             foreach (var slot in TxSlots)
@@ -657,6 +762,40 @@ namespace GsCan.View.Session
 
         public void PumpUntilIdle()
         {
+            DrainRunningChannels();
+            if (!ShouldMarshalToUi)
+            {
+                SyncTraceDisplay();
+                return;
+            }
+
+            while (true)
+            {
+                FlushPending(reschedule: false);
+                lock (_pendingLock)
+                {
+                    if (_pendingRows.Count == 0 && _pendingDrops == 0)
+                    {
+                        _flushPosted = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        internal int PendingCount
+        {
+            get
+            {
+                lock (_pendingLock)
+                {
+                    return _pendingRows.Count;
+                }
+            }
+        }
+
+        internal void DrainRunningChannels()
+        {
             if (_opened == null)
             {
                 return;
@@ -670,11 +809,6 @@ namespace GsCan.View.Session
                 }
 
                 DrainChannel(i);
-            }
-
-            if (ShouldMarshalToUi)
-            {
-                FlushPending();
             }
         }
 
@@ -777,6 +911,11 @@ namespace GsCan.View.Session
             }
 
             Status.Observe(frame);
+            if (frame.Kind == CanFrameKind.Error)
+            {
+                HaltCyclicOnError(channelIndex);
+            }
+
             if (!ShouldMarshalToUi)
             {
                 Status.Publish();
@@ -796,7 +935,7 @@ namespace GsCan.View.Session
             PublishRow(ToRow(channelIndex, frame));
         }
 
-        private bool ShouldMarshalToUi => _runBackgroundPumps && _ui != null;
+        private bool ShouldMarshalToUi => _marshalToUi;
 
         private void PublishRow(FrameRow row)
         {
@@ -807,10 +946,21 @@ namespace GsCan.View.Session
                 return;
             }
 
+            bool post;
             lock (_pendingLock)
             {
-                _pendingRows.Add(row);
-                ScheduleFlush();
+                _pendingRows.Enqueue(row);
+                while (_pendingRows.Count > TraceBuffer.Capacity)
+                {
+                    _pendingRows.Dequeue();
+                }
+
+                post = NeedFlush();
+            }
+
+            if (post)
+            {
+                _ui!.Post(_ => FlushPending(reschedule: true), null);
             }
         }
 
@@ -822,42 +972,48 @@ namespace GsCan.View.Session
                 return;
             }
 
+            bool post;
             lock (_pendingLock)
             {
                 _pendingDrops++;
-                ScheduleFlush();
+                post = NeedFlush();
+            }
+
+            if (post)
+            {
+                _ui!.Post(_ => FlushPending(reschedule: true), null);
             }
         }
 
-        private void ScheduleFlush()
+        private bool NeedFlush()
         {
             if (_flushPosted)
             {
-                return;
+                return false;
             }
 
             _flushPosted = true;
-            _ui!.Post(_ => FlushPending(), null);
+            return true;
         }
 
-        private void FlushPending()
+        private void FlushPending(bool reschedule)
         {
-            List<FrameRow> rows;
+            FrameRow[] rows;
             int drops;
+            bool more;
             lock (_pendingLock)
             {
-                rows = new List<FrameRow>(_pendingRows);
+                rows = _pendingRows.ToArray();
                 _pendingRows.Clear();
                 drops = _pendingDrops;
                 _pendingDrops = 0;
+                more = false;
                 _flushPosted = false;
             }
 
-            foreach (var row in rows)
-            {
-                _trace.Append(row);
-                _latest.Observe(row);
-            }
+            _trace.AppendMany(rows);
+            SyncTraceDisplay();
+            _latest.ObserveMany(rows);
 
             if (drops != 0)
             {
@@ -865,6 +1021,73 @@ namespace GsCan.View.Session
             }
 
             Status.Publish();
+
+            lock (_pendingLock)
+            {
+                more = _pendingRows.Count > 0 || _pendingDrops != 0;
+                if (more && reschedule)
+                {
+                    _flushPosted = true;
+                }
+                else if (!more)
+                {
+                    _flushPosted = false;
+                }
+            }
+
+            if (more && reschedule)
+            {
+                ScheduleFlushDelay();
+            }
+        }
+
+        private void ScheduleFlushDelay()
+        {
+            CancelFlushDelay();
+            _flushDelay = _clock.Schedule(
+                TimeSpan.FromMilliseconds(33),
+                () =>
+                {
+                    if (ShouldMarshalToUi)
+                    {
+                        _ui!.Post(_ => FlushPending(reschedule: true), null);
+                    }
+                    else
+                    {
+                        FlushPending(reschedule: true);
+                    }
+                });
+        }
+
+        private void CancelFlushDelay()
+        {
+            _flushDelay?.Dispose();
+            _flushDelay = null;
+        }
+
+        private void SyncTraceDisplay()
+        {
+            int n = Trace.Count;
+            if (n > TraceBuffer.DisplayCapacity)
+            {
+                n = TraceBuffer.DisplayCapacity;
+            }
+
+            int start = Trace.Count - n;
+            while (TraceDisplay.Count < n)
+            {
+                TraceDisplay.Add(new FrameRowView());
+            }
+
+            while (TraceDisplay.Count > n)
+            {
+                TraceDisplay.RemoveAt(TraceDisplay.Count - 1);
+            }
+
+            for (int i = 0; i < n; i++)
+            {
+                TraceDisplay[i].CopyFrom(Trace[start + i]);
+            }
         }
 
         private FrameRow ToRow(int channelIndex, CanFrame frame)
@@ -1025,7 +1248,7 @@ namespace GsCan.View.Session
             {
                 var slot = AppendSlot();
                 ApplyTxSlotConfig(slot, saved);
-                _heldEnabled[slot.Index] = saved.Enabled;
+                _heldEnabled[slot.Index] = false;
             }
 
             RefreshSlotListFlags();
@@ -1082,7 +1305,7 @@ namespace GsCan.View.Session
                 ? TxSlot.SnapLength(saved.Length, saved.Fd)
                 : TxSlot.InferLength(saved.DataHex, saved.Fd);
             slot.PeriodMs = saved.PeriodMs;
-            slot.Enabled = saved.Enabled;
+            slot.Enabled = false;
         }
 
         private static List<TxSlotConfig> NormalizeTxSlotConfigs(List<TxSlotConfig> source)
@@ -1206,9 +1429,6 @@ namespace GsCan.View.Session
                     _heldEnabled[slot.Index] = slot.Enabled;
                 }
 
-                var enabled = slot.Index >= 0 && slot.Index < _heldEnabled.Count
-                    ? _heldEnabled[slot.Index]
-                    : slot.Enabled;
                 list.Add(new TxSlotConfig
                 {
                     Channel = slot.Channel,
@@ -1220,7 +1440,7 @@ namespace GsCan.View.Session
                     Length = slot.Length,
                     DataHex = slot.DataHex ?? string.Empty,
                     PeriodMs = slot.PeriodMs,
-                    Enabled = enabled
+                    Enabled = false
                 });
             }
 

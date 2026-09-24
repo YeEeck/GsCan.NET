@@ -297,9 +297,14 @@
                                                MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" Text="尚无帧。打开设备并启动通道后，收到的帧会出现在这里。" />
                                     <ListBox x:Name="TraceList"
                                              Classes="frame-grid"
-                                             ItemsSource="{Binding Trace}">
+                                             ItemsSource="{Binding TraceDisplay}">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel />
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
-                                        <DataTemplate x:DataType="session:FrameRow">
+                                        <DataTemplate x:DataType="session:FrameRowView">
                                             <Grid ColumnDefinitions="96,52,70,96,210,40,*">
                                                 <TextBlock Classes="mono"
                                                            Foreground="#475569"

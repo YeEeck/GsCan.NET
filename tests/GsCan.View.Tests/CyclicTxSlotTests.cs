@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using GsCan;
 using GsCan.View.Session;
 using GsCan.View.Tests.Fakes;
@@ -84,6 +85,38 @@ namespace GsCan.View.Tests
             clock.Advance(TimeSpan.FromMilliseconds(50));
             Assert.Empty(opened.Sent);
             Assert.False(session.TxSlots[0].Enabled);
+        }
+
+        [Fact]
+        public void Error_frame_stops_cyclic_send_on_that_channel()
+        {
+            var (session, opened, clock) = OpenStarted();
+            EnableCyclic(session, slotIndex: 0, channel: 0, id: 0x100);
+
+            clock.Advance(TimeSpan.FromMilliseconds(10));
+            Assert.Single(opened.Sent);
+
+            opened.Enqueue(0, new CanFrame(0, Array.Empty<byte>(), CanFrameKind.Error));
+            session.PumpUntilIdle();
+
+            Assert.False(session.TxSlots[0].Enabled);
+            clock.Advance(TimeSpan.FromMilliseconds(50));
+            Assert.Single(opened.Sent);
+        }
+
+        [Fact]
+        public void Send_failure_stops_cyclic_send()
+        {
+            var (session, opened, clock) = OpenStarted();
+            EnableCyclic(session, slotIndex: 0, channel: 0, id: 0x100);
+            opened.SendException = new GsCanException("Failed to send CAN frame (native error 14).");
+
+            clock.Advance(TimeSpan.FromMilliseconds(10));
+
+            Assert.False(session.TxSlots[0].Enabled);
+            opened.SendException = null;
+            clock.Advance(TimeSpan.FromMilliseconds(50));
+            Assert.Empty(opened.Sent);
         }
 
         [Fact]
@@ -176,6 +209,49 @@ namespace GsCan.View.Tests
             Assert.Equal(3, opened.Sent.Count);
             Assert.Equal(1, opened.Sent[2].Channel);
             Assert.Equal(0x11u, opened.Sent[2].Frame.Id);
+        }
+
+        [Fact]
+        public void Cyclic_send_transmits_without_waiting_for_the_ui_queue()
+        {
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DroppingSynchronizationContext());
+            try
+            {
+                var clock = new FakeClock();
+                var info = new DeviceInfo(@"\\?\usb#a", 2);
+                var port = new FakeGsCanPort();
+                var session = new ViewSession(port, runBackgroundPumps: false, clock: clock, marshalToUi: true);
+                session.Open(info);
+                session.StartChannel(0);
+                var slot = session.TxSlots[0];
+                slot.Channel = 0;
+                slot.Id = 0x100;
+                slot.Data = new byte[] { 0x01 };
+                slot.PeriodMs = 10;
+                slot.Enabled = true;
+
+                clock.Advance(TimeSpan.FromMilliseconds(10));
+
+                Assert.Single(port.LastOpenedDevice!.Sent);
+                Assert.Equal(0x100u, port.LastOpenedDevice.Sent[0].Frame.Id);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+        }
+
+        private sealed class DroppingSynchronizationContext : SynchronizationContext
+        {
+            public override void Post(SendOrPostCallback d, object? state)
+            {
+            }
+
+            public override void Send(SendOrPostCallback d, object? state)
+            {
+                d(state);
+            }
         }
 
         private static void EnableCyclic(ViewSession session, int slotIndex, int channel, uint id)

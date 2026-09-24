@@ -474,11 +474,6 @@
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Background" Value="Transparent" />
     </Style>
-
-    <Style Selector="ListBox.frame-grid ListBoxItem:nth-child(2n)">
-        <Setter Property="Background" Value="#F8FAFC" />
-    </Style>
-
     <Style Selector="ListBox.frame-grid ListBoxItem:pointerover">
         <Setter Property="Background" Value="#F0FDFA" />
     </Style>

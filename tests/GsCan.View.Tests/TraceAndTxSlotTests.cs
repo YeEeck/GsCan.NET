@@ -1,3 +1,6 @@
+using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Threading;
 using GsCan;
 using GsCan.View.Session;
 using GsCan.View.Tests.Fakes;
@@ -213,6 +216,80 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
+        public void AppendMany_under_capacity_adds_without_resetting_the_list()
+        {
+            var rows = new TraceRows();
+            var buffer = new TraceBuffer(rows);
+            for (uint i = 0; i < 5_000; i++)
+            {
+                buffer.Append(Row(i));
+            }
+
+            int resets = 0;
+            rows.CollectionChanged += (_, e) =>
+            {
+                if (e.Action == NotifyCollectionChangedAction.Reset)
+                {
+                    resets++;
+                }
+            };
+
+            var sw = Stopwatch.StartNew();
+            for (uint i = 0; i < 200; i++)
+            {
+                buffer.AppendMany(new[] { Row(5_000 + i) });
+            }
+
+            sw.Stop();
+            Assert.Equal(0, resets);
+            Assert.Equal(5_200, rows.Count);
+            Assert.Equal(0u, rows[0].Id);
+            Assert.Equal(5_199u, rows[5_199].Id);
+            Assert.True(sw.ElapsedMilliseconds < 500, "append took " + sw.ElapsedMilliseconds + "ms");
+        }
+
+        [Fact]
+        public void TraceDisplay_keeps_only_the_newest_window()
+        {
+            var (session, opened) = OpenStarted(runBackgroundPumps: false);
+            int total = TraceBuffer.DisplayCapacity + 500;
+            for (uint i = 0; i < total; i++)
+            {
+                opened.Enqueue(0, new CanFrame(i, Array.Empty<byte>(), CanFrameKind.Rx, timestampMicroseconds: i));
+            }
+
+            session.PumpUntilIdle();
+
+            Assert.Equal(total, session.Trace.Count);
+            Assert.Equal(TraceBuffer.DisplayCapacity, session.TraceDisplay.Count);
+            Assert.Equal((uint)(total - TraceBuffer.DisplayCapacity), session.TraceDisplay[0].Id);
+            Assert.Equal((uint)(total - 1), session.TraceDisplay[session.TraceDisplay.Count - 1].Id);
+        }
+
+        [Fact]
+        public void AppendMany_at_capacity_overwrites_oldest_without_copying_the_buffer()
+        {
+            var rows = new TraceRows();
+            var buffer = new TraceBuffer(rows);
+            for (uint i = 0; i < TraceBuffer.Capacity; i++)
+            {
+                buffer.Append(Row(i));
+            }
+
+            var sw = Stopwatch.StartNew();
+            for (uint i = 0; i < 500; i++)
+            {
+                buffer.AppendMany(new[] { Row((uint)TraceBuffer.Capacity + i) });
+            }
+
+            sw.Stop();
+            Assert.Equal(TraceBuffer.Capacity, rows.Count);
+            Assert.Equal(500u, rows[0].Id);
+            Assert.Equal((uint)(TraceBuffer.Capacity + 499), rows[TraceBuffer.Capacity - 1].Id);
+            Assert.True(sw.ElapsedMilliseconds < 250, "overwrite took " + sw.ElapsedMilliseconds + "ms");
+        }
+
+        [Fact]
         public void Trace_drops_oldest_row_when_over_capacity()
         {
             var (session, opened) = OpenStarted(runBackgroundPumps: false);
@@ -226,6 +303,80 @@ namespace GsCan.View.Tests
             Assert.Equal(100_000, session.Trace.Count);
             Assert.Equal(1u, session.Trace[0].Id);
             Assert.Equal(100_000u, session.Trace[99_999].Id);
+        }
+
+        [Fact]
+        public void Pending_and_trace_stay_capped_when_ui_flush_lags()
+        {
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new QueuingSynchronizationContext());
+            try
+            {
+                var info = new DeviceInfo(@"\\?\usb#a", 2);
+                var port = new FakeGsCanPort();
+                var session = new ViewSession(port, runBackgroundPumps: false, marshalToUi: true);
+                session.Open(info);
+                session.StartChannel(0);
+                var opened = port.LastOpenedDevice!;
+
+                const int burst = 250_000;
+                for (uint i = 0; i < burst; i++)
+                {
+                    opened.Enqueue(0, new CanFrame(i, Array.Empty<byte>(), CanFrameKind.Rx, timestampMicroseconds: i));
+                }
+
+                session.DrainRunningChannels();
+                Assert.Equal(TraceBuffer.Capacity, session.PendingCount);
+                Assert.Empty(session.Trace);
+
+                var sw = Stopwatch.StartNew();
+                session.PumpUntilIdle();
+                sw.Stop();
+
+                Assert.True(
+                    sw.ElapsedMilliseconds < 2000,
+                    "flush took " + sw.ElapsedMilliseconds + "ms");
+                Assert.Equal(0, session.PendingCount);
+                Assert.Equal(TraceBuffer.Capacity, session.Trace.Count);
+                Assert.Equal((uint)(burst - TraceBuffer.Capacity), session.Trace[0].Id);
+                Assert.Equal((uint)(burst - 1), session.Trace[TraceBuffer.Capacity - 1].Id);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
+        }
+
+        [Fact]
+        public void Clear_drops_pending_rows_that_have_not_flushed()
+        {
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new QueuingSynchronizationContext());
+            try
+            {
+                var info = new DeviceInfo(@"\\?\usb#a", 2);
+                var port = new FakeGsCanPort();
+                var session = new ViewSession(port, runBackgroundPumps: false, marshalToUi: true);
+                session.Open(info);
+                session.StartChannel(0);
+                var opened = port.LastOpenedDevice!;
+                opened.Enqueue(0, Frame(0x100, CanFrameKind.Rx, timestamp: 1000, data: 0x01));
+                opened.Enqueue(0, Frame(0x200, CanFrameKind.Rx, timestamp: 2000, data: 0x02));
+
+                session.DrainRunningChannels();
+                Assert.Equal(2, session.PendingCount);
+                Assert.Empty(session.Trace);
+
+                session.Clear();
+                session.PumpUntilIdle();
+
+                Assert.Equal(0, session.PendingCount);
+                Assert.Empty(session.Trace);
+            }
+            finally
+            {
+                SynchronizationContext.SetSynchronizationContext(previous);
+            }
         }
 
         [Fact]
@@ -349,6 +500,23 @@ namespace GsCan.View.Tests
             session.Channels[0].Loopback = loopback;
             session.StartChannel(0);
             return (session, port.LastOpenedDevice!);
+        }
+
+        private sealed class QueuingSynchronizationContext : SynchronizationContext
+        {
+            public override void Post(SendOrPostCallback d, object? state)
+            {
+            }
+
+            public override void Send(SendOrPostCallback d, object? state)
+            {
+                d(state);
+            }
+        }
+
+        private static FrameRow Row(uint id)
+        {
+            return new FrameRow(0, 0, "Rx", id, false, false, false, false, false, false, 0, string.Empty, 0);
         }
 
         private static CanFrame Frame(
