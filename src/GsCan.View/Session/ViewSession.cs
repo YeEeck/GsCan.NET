@@ -285,6 +285,11 @@ namespace GsCan.View.Session
             _trace.Clear();
         }
 
+        public void SaveLog(string path)
+        {
+            new TraceLogWriter().Write(path, Trace);
+        }
+
         public void SendOnce(int slotIndex)
         {
             if (_opened == null || slotIndex < 0 || slotIndex >= TxSlots.Count)
