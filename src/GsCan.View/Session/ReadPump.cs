@@ -42,7 +42,10 @@ namespace GsCan.View.Session
             unblock();
             var thread = _thread;
             _thread = null;
-            thread?.Join(1000);
+            if (thread != null && thread != Thread.CurrentThread)
+            {
+                thread.Join(1000);
+            }
         }
 
         private void Run()

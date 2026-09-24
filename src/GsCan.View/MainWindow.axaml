@@ -243,9 +243,29 @@
         </Border>
         <Border Grid.Row="4" Padding="12,8">
             <StackPanel Orientation="Horizontal" Spacing="16">
-                <TextBlock FontWeight="SemiBold" Text="状态" />
-                <TextBlock Text="{Binding PauseDroppedCount, StringFormat='暂停丢弃 {0}'}" />
-                <TextBlock Text="{Binding LastError}" />
+                <TextBlock FontWeight="SemiBold" VerticalAlignment="Center" Text="状态" />
+                <ItemsControl ItemsSource="{Binding Channels}" VerticalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="session:ChannelState">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <TextBlock VerticalAlignment="Center" Text="{Binding Index, StringFormat='通道 {0}'}" />
+                                <TextBlock VerticalAlignment="Center" IsVisible="{Binding IsRunning}" Text="运行" />
+                                <TextBlock VerticalAlignment="Center" IsVisible="{Binding !IsRunning}" Text="停止" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock VerticalAlignment="Center" Text="{Binding Status.RxCount, StringFormat='RX {0}'}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding Status.TxCount, StringFormat='TX (Echo) {0}'}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding Status.ErrorCount, StringFormat='Error {0}'}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding Status.OverflowCount, StringFormat='Overflow {0}'}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding PauseDroppedCount, StringFormat='暂停丢弃 {0}'}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding LastError}" />
             </StackPanel>
         </Border>
     </Grid>
