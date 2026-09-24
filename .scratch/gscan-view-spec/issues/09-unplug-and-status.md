@@ -8,8 +8,12 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 失败路径关闭 Device 后已有 Trace/Latest 仍在
-- [ ] 不自动 Open / Start；用户须刷新并再打开
-- [ ] TX 计数来自 Echo，文案不暗示已经上了总线
-- [ ] RX / Error / Overflow / 暂停丢弃可在会话面用注入帧与暂停断言
-- [ ] 实机拔线若不便测，允许 SKIP；不得在没插设备的机器上失败
+- [x] 失败路径关闭 Device 后已有 Trace/Latest 仍在
+- [x] 不自动 Open / Start；用户须刷新并再打开
+- [x] TX 计数来自 Echo，文案不暗示已经上了总线
+- [x] RX / Error / Overflow / 暂停丢弃可在会话面用注入帧与暂停断言
+- [x] 实机拔线若不便测，允许 SKIP；不得在没插设备的机器上失败
+
+## Comments
+
+- Implemented on `feat/gscan-view-09-unplug-status` (`49541ea`), merged to `feat/gscan-view-v1`. TX count is Echo. OnPumpError Closes Device, keeps Trace, sets LastError. Hardware unplug SKIP.
