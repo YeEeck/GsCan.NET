@@ -8,6 +8,7 @@
     <RootNamespace>GsCan.View</RootNamespace>
     <AssemblyName>GsCan.View</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
 
   <ItemGroup>
