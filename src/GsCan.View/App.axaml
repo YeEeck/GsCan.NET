@@ -3,6 +3,18 @@
              x:Class="GsCan.View.App"
              RequestedThemeVariant="Light">
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme DensityStyle="Compact">
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Light"
+                                       Accent="#0F766E"
+                                       RegionColor="#F3F5F8"
+                                       ErrorText="#B91C1C" />
+                <ColorPaletteResources x:Key="Dark"
+                                       Accent="#2EC4B6"
+                                       RegionColor="#10161C"
+                                       ErrorText="#FF8A80" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+        <StyleInclude Source="avares://GsCan.View/AppStyles.axaml" />
     </Application.Styles>
 </Application>

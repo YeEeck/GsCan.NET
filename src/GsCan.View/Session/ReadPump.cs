@@ -48,6 +48,11 @@ namespace GsCan.View.Session
             }
         }
 
+        internal static bool IsChannelNotStarted(string? message)
+        {
+            return message == "Channel is not started.";
+        }
+
         private void Run()
         {
             while (!_stop)
@@ -67,11 +72,19 @@ namespace GsCan.View.Session
                 }
                 catch (GsCanException ex)
                 {
-                    if (!_stop)
+                    if (_stop)
                     {
-                        _onError(ex.Message);
+                        break;
                     }
 
+                    // Stop unblocks TryRead with this message. It is not unplug:
+                    // retry so a still-running channel survives another channel's Stop.
+                    if (IsChannelNotStarted(ex.Message))
+                    {
+                        continue;
+                    }
+
+                    _onError(ex.Message);
                     break;
                 }
             }

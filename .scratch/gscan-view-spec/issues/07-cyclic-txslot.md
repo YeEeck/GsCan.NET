@@ -17,3 +17,4 @@ Parent: [GsCan View v1 规格](../spec.md)
 ## Comments
 
 - Implemented on `feat/gscan-view-07-cyclic-txslot` (`25fb8e9`), merged to `feat/gscan-view-v1`. FakeClock drives cyclic Send. Stop/ListenOnly clear Enabled so Start does not resume.
+- Later: the always-visible 16-row table was replaced by a dynamic list (default 1 row, cap 16) per ADR-0009. Cyclic semantics unchanged.

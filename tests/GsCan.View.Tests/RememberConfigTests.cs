@@ -24,6 +24,9 @@ namespace GsCan.View.Tests
             sessionA.DisplayFilter.ShowEcho = false;
             sessionA.TxSlots[0].Id = 0x123;
             sessionA.TxSlots[0].PeriodMs = 10;
+            sessionA.AddTxSlot();
+            sessionA.TxSlots[1].Id = 0x200;
+            sessionA.TxSlots[1].Channel = 1;
             sessionA.Close();
 
             var portB = new FakeGsCanPort();
@@ -31,8 +34,11 @@ namespace GsCan.View.Tests
 
             Assert.Equal(@"\\?\usb#remembered", sessionB.SelectedDevice!.Path);
             Assert.False(sessionB.DisplayFilter.ShowEcho);
+            Assert.Equal(2, sessionB.TxSlots.Count);
             Assert.Equal(0x123u, sessionB.TxSlots[0].Id);
             Assert.Equal(10, sessionB.TxSlots[0].PeriodMs);
+            Assert.Equal(0x200u, sessionB.TxSlots[1].Id);
+            Assert.Equal(1, sessionB.TxSlots[1].Channel);
             Assert.Null(sessionB.OpenedPath);
             Assert.DoesNotContain(sessionB.Channels, channel => channel.IsRunning);
             Assert.Equal(0, portB.OpenCallCount);
@@ -84,6 +90,90 @@ namespace GsCan.View.Tests
             clockB.Advance(System.TimeSpan.FromMilliseconds(10));
             Assert.Single(portB.LastOpenedDevice.Sent);
             Assert.Equal(0x123u, portB.LastOpenedDevice.Sent[0].Frame.Id);
+        }
+
+        [Fact]
+        public void Restoring_sixteen_blank_TxSlots_keeps_one_row()
+        {
+            var store = new FakeConfigStore();
+            var blanks = new List<TxSlotConfig>();
+            for (int i = 0; i < 16; i++)
+            {
+                blanks.Add(new TxSlotConfig());
+            }
+
+            store.Save(new ViewConfig { TxSlots = blanks });
+
+            var session = new ViewSession(new FakeGsCanPort(), store);
+
+            Assert.Equal(0u, Assert.Single(session.TxSlots).Id);
+        }
+
+        [Fact]
+        public void Restoring_filled_TxSlots_drops_trailing_blanks()
+        {
+            var store = new FakeConfigStore();
+            store.Save(new ViewConfig
+            {
+                TxSlots = new List<TxSlotConfig>
+                {
+                    new TxSlotConfig { Id = 0x100, PeriodMs = 10 },
+                    new TxSlotConfig { Id = 0x200, Channel = 1 },
+                    new TxSlotConfig(),
+                    new TxSlotConfig { Length = 8, DataHex = "00 00 00 00 00 00 00 00" }
+                }
+            });
+
+            var session = new ViewSession(new FakeGsCanPort(), store);
+
+            Assert.Equal(2, session.TxSlots.Count);
+            Assert.Equal(0x100u, session.TxSlots[0].Id);
+            Assert.Equal(10, session.TxSlots[0].PeriodMs);
+            Assert.Equal(0x200u, session.TxSlots[1].Id);
+            Assert.Equal(1, session.TxSlots[1].Channel);
+        }
+
+        [Fact]
+        public void Restoring_TxSlot_uses_saved_Length_and_infers_when_missing()
+        {
+            var store = new FakeConfigStore();
+            store.Save(new ViewConfig
+            {
+                TxSlots = new List<TxSlotConfig>
+                {
+                    new TxSlotConfig { Id = 0x100, Length = 4, DataHex = "AA BB" },
+                    new TxSlotConfig { Id = 0x200, Fd = true, DataHex = "11 22 33 44 55 66 77 88 99" }
+                }
+            });
+
+            var session = new ViewSession(new FakeGsCanPort(), store);
+
+            Assert.Equal(2, session.TxSlots.Count);
+            Assert.Equal(4, session.TxSlots[0].Length);
+            Assert.Equal(new byte[] { 0xAA, 0xBB, 0, 0 }, session.TxSlots[0].Data);
+            Assert.True(session.TxSlots[1].Fd);
+            Assert.Equal(12, session.TxSlots[1].Length);
+            Assert.Equal(12, session.TxSlots[1].Data.Length);
+            Assert.Equal(0x99, session.TxSlots[1].Data[8]);
+        }
+
+        [Fact]
+        public void Restoring_TxSlot_saved_Length_truncates_longer_DataHex()
+        {
+            var store = new FakeConfigStore();
+            store.Save(new ViewConfig
+            {
+                TxSlots = new List<TxSlotConfig>
+                {
+                    new TxSlotConfig { Id = 0x100, Length = 4, DataHex = "AA BB CC DD EE" }
+                }
+            });
+
+            var session = new ViewSession(new FakeGsCanPort(), store);
+
+            var slot = Assert.Single(session.TxSlots);
+            Assert.Equal(4, slot.Length);
+            Assert.Equal(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD }, slot.Data);
         }
 
         [Fact]

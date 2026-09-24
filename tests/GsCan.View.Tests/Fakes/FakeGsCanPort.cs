@@ -50,6 +50,7 @@ namespace GsCan.View.Tests.Fakes
         private readonly bool[] _started;
         private readonly bool[] _listenOnly;
         private readonly List<(int Channel, CanFrame Frame)> _sent = new List<(int, CanFrame)>();
+        private int _readCancelEpoch;
 
         public FakeOpenedDevice(string path, int channelCount, FakeGsCanPort port)
         {
@@ -76,6 +77,13 @@ namespace GsCan.View.Tests.Fakes
         public Dictionary<int, ChannelOptions> LastStartOptions { get; } = new Dictionary<int, ChannelOptions>();
         public Exception? StartException { get; set; }
         public Exception? TryReadException { get; set; }
+
+        /// <summary>
+        /// When true, Stop of any channel cancels in-flight TryRead on every
+        /// channel with "Channel is not started." — the GsCan Device bug this
+        /// View must not treat as unplug.
+        /// </summary>
+        public bool SimulateDeviceWideReadCancel { get; set; }
 
         public IReadOnlyList<(int Channel, CanFrame Frame)> Sent
         {
@@ -113,7 +121,22 @@ namespace GsCan.View.Tests.Fakes
             StopCallCount++;
             StoppedIndexes.Add(channelIndex);
             _started[channelIndex] = false;
-            _rxSignals[channelIndex].Set();
+            while (_rx[channelIndex].TryDequeue(out _))
+            {
+            }
+
+            if (SimulateDeviceWideReadCancel)
+            {
+                Interlocked.Increment(ref _readCancelEpoch);
+                for (int i = 0; i < _rxSignals.Length; i++)
+                {
+                    _rxSignals[i].Set();
+                }
+            }
+            else
+            {
+                _rxSignals[channelIndex].Set();
+            }
         }
 
         public void Send(int channelIndex, CanFrame frame)
@@ -141,10 +164,13 @@ namespace GsCan.View.Tests.Fakes
                 throw TryReadException;
             }
 
+            int epoch = Volatile.Read(ref _readCancelEpoch);
             if (_rx[channelIndex].TryDequeue(out frame))
             {
                 return true;
             }
+
+            ThrowIfUnreadable(channelIndex, epoch);
 
             if (timeoutMilliseconds <= 0)
             {
@@ -162,11 +188,22 @@ namespace GsCan.View.Tests.Fakes
                     return true;
                 }
 
+                ThrowIfUnreadable(channelIndex, epoch);
                 remaining = timeoutMilliseconds - (int)clock.ElapsedMilliseconds;
             }
 
             frame = default;
             return false;
+        }
+
+        private void ThrowIfUnreadable(int channelIndex, int epoch)
+        {
+            if (!_started[channelIndex]
+                || (SimulateDeviceWideReadCancel
+                    && Volatile.Read(ref _readCancelEpoch) != epoch))
+            {
+                throw new GsCanException("Channel is not started.");
+            }
         }
 
         public void Dispose()

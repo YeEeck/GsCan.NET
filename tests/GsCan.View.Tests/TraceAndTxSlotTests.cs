@@ -8,11 +8,146 @@ namespace GsCan.View.Tests
     public class TraceAndTxSlotTests
     {
         [Fact]
-        public void TxSlots_has_sixteen_oneshot_rows()
+        public void TxSlots_starts_with_one_oneshot_row()
         {
             var session = new ViewSession(new FakeGsCanPort());
-            Assert.Equal(16, session.TxSlots.Count);
-            Assert.All(session.TxSlots, slot => Assert.Equal(0, slot.PeriodMs));
+            var slot = Assert.Single(session.TxSlots);
+            Assert.Equal(0, slot.PeriodMs);
+            Assert.Equal(TxSlot.DefaultLength, slot.Length);
+            Assert.Equal(new byte[TxSlot.DefaultLength], slot.Data);
+            Assert.True(session.CanAddTxSlot);
+            Assert.False(session.CanRemoveTxSlot);
+            Assert.False(slot.CanRemove);
+        }
+
+        [Fact]
+        public void AddTxSlot_appends_until_max_and_Remove_keeps_one()
+        {
+            var session = new ViewSession(new FakeGsCanPort());
+
+            for (int i = 1; i < TxSlot.MaxSlotCount; i++)
+            {
+                session.AddTxSlot();
+            }
+
+            Assert.Equal(TxSlot.MaxSlotCount, session.TxSlots.Count);
+            Assert.False(session.CanAddTxSlot);
+            Assert.True(session.CanRemoveTxSlot);
+            session.AddTxSlot();
+            Assert.Equal(TxSlot.MaxSlotCount, session.TxSlots.Count);
+
+            session.RemoveTxSlot(session.TxSlots[3]);
+            Assert.Equal(TxSlot.MaxSlotCount - 1, session.TxSlots.Count);
+            for (int i = 0; i < session.TxSlots.Count; i++)
+            {
+                Assert.Equal(i, session.TxSlots[i].Index);
+            }
+
+            while (session.TxSlots.Count > 1)
+            {
+                session.RemoveTxSlot(session.TxSlots[0]);
+            }
+
+            Assert.Single(session.TxSlots);
+            Assert.False(session.CanRemoveTxSlot);
+            session.RemoveTxSlot(session.TxSlots[0]);
+            Assert.Single(session.TxSlots);
+        }
+
+        [Fact]
+        public void TxSlot_clears_BRS_when_FD_is_unchecked()
+        {
+            var slot = new ViewSession(new FakeGsCanPort()).TxSlots[0];
+            slot.Fd = true;
+            slot.BitRateSwitch = true;
+
+            slot.Fd = false;
+
+            Assert.False(slot.BitRateSwitch);
+            slot.BitRateSwitch = true;
+            Assert.False(slot.BitRateSwitch);
+        }
+
+        [Fact]
+        public void TxSlot_Length_pads_and_truncates_data()
+        {
+            var slot = new ViewSession(new FakeGsCanPort()).TxSlots[0];
+            slot.DataHex = "AA BB";
+
+            Assert.Equal(8, slot.Length);
+            Assert.Equal(new byte[] { 0xAA, 0xBB, 0, 0, 0, 0, 0, 0 }, slot.Data);
+
+            slot.Length = 2;
+            Assert.Equal(new byte[] { 0xAA, 0xBB }, slot.Data);
+            Assert.Equal("AA BB", slot.DataHex);
+
+            slot.Length = 4;
+            Assert.Equal(new byte[] { 0xAA, 0xBB, 0, 0 }, slot.Data);
+        }
+
+        [Fact]
+        public void TxSlot_DataHex_grows_DLC_and_does_not_shrink_it()
+        {
+            var slot = new ViewSession(new FakeGsCanPort()).TxSlots[0];
+            slot.Length = 2;
+            slot.DataHex = "11 22 33";
+            Assert.Equal(3, slot.Length);
+            Assert.Equal(new byte[] { 0x11, 0x22, 0x33 }, slot.Data);
+
+            slot.Fd = true;
+            slot.DataHex = "11 22 33 44 55 66 77 88 99";
+            Assert.Equal(12, slot.Length);
+            Assert.Equal(12, slot.Data.Length);
+            Assert.Equal(0x99, slot.Data[8]);
+
+            slot.DataHex = "AA";
+            Assert.Equal(12, slot.Length);
+            Assert.Equal(0xAA, slot.Data[0]);
+            Assert.Equal(0, slot.Data[1]);
+        }
+
+        [Fact]
+        public void TxSlot_invalid_DataHex_does_not_change_data()
+        {
+            var slot = new ViewSession(new FakeGsCanPort()).TxSlots[0];
+            slot.Length = 2;
+            slot.DataHex = "AA BB";
+            slot.DataHex = "A";
+            Assert.Equal(new byte[] { 0xAA, 0xBB }, slot.Data);
+            slot.DataHex = "GG";
+            Assert.Equal(new byte[] { 0xAA, 0xBB }, slot.Data);
+        }
+
+        [Fact]
+        public void TxSlot_unchecking_FD_clamps_length_to_8()
+        {
+            var slot = new ViewSession(new FakeGsCanPort()).TxSlots[0];
+            slot.Fd = true;
+            slot.Length = 64;
+            Assert.Equal(64, slot.Length);
+            Assert.Equal(64, slot.Data.Length);
+
+            slot.Fd = false;
+
+            Assert.Equal(8, slot.Length);
+            Assert.Equal(8, slot.Data.Length);
+            Assert.Same(TxSlot.ClassicLengths, slot.LengthChoices);
+        }
+
+        [Fact]
+        public void SendOnce_uses_DLC_length()
+        {
+            var (session, opened) = OpenStarted(runBackgroundPumps: false);
+            var slot = session.TxSlots[0];
+            slot.Channel = 0;
+            slot.Id = 0x123;
+            slot.Length = 4;
+            slot.DataHex = "AA BB";
+
+            session.SendOnce(0);
+
+            Assert.Single(opened.Sent);
+            Assert.Equal(new byte[] { 0xAA, 0xBB, 0, 0 }, opened.Sent[0].Frame.Data);
         }
 
         [Fact]

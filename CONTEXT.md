@@ -65,8 +65,8 @@ _Avoid_: Sniffer, Overwrite, Receive, Trace（当实际指按 ID 覆盖时）
 _Avoid_: Filter（当实际指硬件滤波时）, 验收滤波, Hardware Filter
 
 **TxSlot**:
-发送表里的一行：Channel、ID、标志、数据、周期、使能。周期为 0 表示只发一次。
-_Avoid_: Message, Transmit window, 报文, CanFrame（当实际指这行配置时）
+发送表里的一行：Channel、ID、标志、DLC、数据、周期、使能。DLC 是 payload 字节数（经典 0–8；FD 另加 12/16/20/24/32/48/64），不是 0–15 编码。周期为 0 表示只发一次。表按需增减，不是硬件发送邮箱。
+_Avoid_: Message, Transmit window, 报文, CanFrame（当实际指这行配置时）, 邮箱, mailbox, DL（当实际指这一列时）
 
 **Log**:
 把 Trace 存成的 CSV 文件。第一版只写、不打开。

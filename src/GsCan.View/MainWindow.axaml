@@ -7,390 +7,655 @@
         x:Class="GsCan.View.MainWindow"
         x:DataType="session:ViewSession"
         Title="{Binding WindowTitle}"
-        Width="1100"
-        Height="720"
-        MinWidth="720"
-        MinHeight="480">
+        Width="1280"
+        Height="800"
+        MinWidth="960"
+        MinHeight="560"
+        UseLayoutRounding="True">
     <Window.Resources>
         <local:BitrateLabelConverter x:Key="BitrateLabel" />
+        <local:DeviceLabelConverter x:Key="DeviceLabel" />
+        <local:KindBrushConverter x:Key="KindBrush" />
+        <local:ChannelBrushConverter x:Key="ChannelBrush" />
     </Window.Resources>
-    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto">
-        <Border Grid.Row="0"
-                Padding="12,8"
-                BorderBrush="#33000000"
-                BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
-                <TextBlock Grid.Column="0"
+    <Grid RowDefinitions="Auto,Auto,*,5,168,Auto">
+        <Border Grid.Row="0" Classes="toolbar">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Classes="section"
                            Margin="0,0,12,0"
                            VerticalAlignment="Center"
-                           FontWeight="SemiBold"
                            Text="设备" />
                 <ComboBox Grid.Column="1"
-                          MinWidth="240"
+                          Classes="toolbar"
+                          MinWidth="200"
                           HorizontalAlignment="Stretch"
+                          VerticalContentAlignment="Center"
                           ItemsSource="{Binding DeviceList}"
                           PlaceholderText="无设备"
-                          SelectedItem="{Binding SelectedDevice}">
+                          SelectedItem="{Binding SelectedDevice}"
+                          ToolTip.Tip="{Binding SelectedDevice.Path}"
+                          DropDownOpened="OnDeviceDropDownOpened">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="gscan:DeviceInfo">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Path}" />
-                                <TextBlock Text="{Binding ChannelCount, StringFormat='({0} 路通道)'}" />
-                            </StackPanel>
+                            <Grid ColumnDefinitions="Auto,*,Auto"
+                                  MinHeight="28"
+                                  VerticalAlignment="Center"
+                                  ToolTip.Tip="{Binding Path}">
+                                <TextBlock VerticalAlignment="Center"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Text="{Binding Converter={StaticResource DeviceLabel}, ConverterParameter=title}" />
+                                <TextBlock Grid.Column="1"
+                                           Margin="10,0,12,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           FontFamily="Cascadia Mono, Consolas, Courier New"
+                                           Foreground="#64748B"
+                                           TextTrimming="CharacterEllipsis"
+                                           Text="{Binding Converter={StaticResource DeviceLabel}, ConverterParameter=detail}" />
+                                <TextBlock Grid.Column="2"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           Foreground="#64748B"
+                                           Text="{Binding Converter={StaticResource DeviceLabel}, ConverterParameter=channels}" />
+                            </Grid>
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <Button Grid.Column="2"
-                        Margin="8,0,0,0"
-                        Command="{Binding RefreshDevices}"
-                        Content="刷新" />
-                <Button Grid.Column="3"
-                        Margin="8,0,0,0"
-                        Command="{Binding OpenSelected}"
-                        Content="打开" />
-                <Button Grid.Column="4"
-                        Margin="8,0,0,0"
-                        Command="{Binding Close}"
-                        Content="关闭" />
-                <TextBlock Grid.Column="5"
-                           Margin="12,0,0,0"
-                           VerticalAlignment="Center"
-                           Text="{Binding OpenedPath, TargetNullValue='未打开'}" />
+                <StackPanel Grid.Column="2"
+                            Margin="10,0,0,0"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center">
+                    <Button Classes="compact"
+                            Command="{Binding RefreshDevices}"
+                            Content="刷新" />
+                    <Button Classes="compact accent"
+                            Command="{Binding OpenSelected}"
+                            Content="打开" />
+                    <Button Classes="compact"
+                            Command="{Binding Close}"
+                            Content="关闭" />
+                    <Border Classes="chip muted" IsVisible="{Binding !IsDeviceOpen}">
+                        <TextBlock Text="未打开" />
+                    </Border>
+                    <Border Classes="chip ok"
+                            MaxWidth="280"
+                            IsVisible="{Binding IsDeviceOpen}"
+                            ToolTip.Tip="{Binding OpenedPath}">
+                        <TextBlock Text="{Binding OpenedLabel}"
+                                   TextTrimming="CharacterEllipsis" />
+                    </Border>
+                </StackPanel>
             </Grid>
         </Border>
-        <Border Grid.Row="1"
-                Padding="12,8"
-                BorderBrush="#33000000"
-                BorderThickness="0,0,0,1">
+
+        <Border Grid.Row="1" Classes="panel">
             <StackPanel>
-                <TextBlock Margin="0,0,0,8"
-                           FontWeight="SemiBold"
-                           Text="通道" />
-                <ItemsControl ItemsSource="{Binding Channels}">
+                <TextBlock Classes="section" Text="通道" />
+                <TextBlock Classes="hint"
+                           IsVisible="{Binding !IsDeviceOpen}"
+                           Text="打开设备后在这里配置通道。" />
+                <ItemsControl IsVisible="{Binding IsDeviceOpen}" ItemsSource="{Binding Channels}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="session:ChannelState">
-                            <Border Padding="0,6">
-                                <WrapPanel>
-                                    <TextBlock Margin="0,0,12,4"
-                                               VerticalAlignment="Center"
-                                               FontWeight="SemiBold"
-                                               Text="{Binding Index, StringFormat='通道 {0}'}" />
-                                    <Button Margin="0,0,4,4"
-                                            VerticalAlignment="Center"
-                                            Command="{Binding Start}"
-                                            Content="启动"
-                                            IsEnabled="{Binding !IsRunning}" />
-                                    <Button Margin="0,0,12,4"
-                                            VerticalAlignment="Center"
-                                            Command="{Binding Stop}"
-                                            Content="停止" />
-                                    <TextBlock Margin="0,0,4,4"
-                                               VerticalAlignment="Center"
-                                               Text="仲裁" />
-                                    <ComboBox Width="110"
-                                              Margin="0,0,12,4"
-                                              VerticalAlignment="Center"
-                                              ItemsSource="{x:Static session:ChannelState.ArbitrationBitrates}"
-                                              SelectedItem="{Binding Bitrate}">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate x:DataType="sys:Int32">
-                                                <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                    <CheckBox Margin="0,0,12,4"
-                                              VerticalAlignment="Center"
-                                              Content="FD"
-                                              IsChecked="{Binding FdEnabled}" />
-                                    <StackPanel Margin="0,0,12,4"
-                                                Orientation="Horizontal"
-                                                Spacing="4"
-                                                IsVisible="{Binding FdEnabled}">
-                                        <TextBlock VerticalAlignment="Center" Text="数据段" />
-                                        <ComboBox Width="90"
+                            <Border Classes="channel-card">
+                                <Grid ColumnDefinitions="3,*">
+                                    <Border Background="{DynamicResource AccentFillColorDefaultBrush}"
+                                            IsVisible="{Binding IsRunning}" />
+                                    <WrapPanel Grid.Column="1" Margin="10,8">
+                                        <Border Classes="badge"
+                                                Margin="0,0,8,4"
+                                                Background="{Binding Index, Converter={StaticResource ChannelBrush}}">
+                                            <TextBlock Text="{Binding Index, StringFormat='CH {0}'}" />
+                                        </Border>
+                                        <Border Classes="pill run" Margin="0,0,8,4" IsVisible="{Binding IsRunning}">
+                                            <TextBlock Text="运行" />
+                                        </Border>
+                                        <Border Classes="pill stop" Margin="0,0,8,4" IsVisible="{Binding !IsRunning}">
+                                            <TextBlock Text="停止" />
+                                        </Border>
+                                        <Button Classes="compact accent"
+                                                Margin="0,0,6,4"
+                                                Command="{Binding Start}"
+                                                Content="启动"
+                                                IsEnabled="{Binding !IsRunning}" />
+                                        <Button Classes="compact"
+                                                Margin="0,0,14,4"
+                                                Command="{Binding Stop}"
+                                                Content="停止" />
+                                        <TextBlock Classes="filter-label"
+                                                   Margin="0,0,6,4"
+                                                   VerticalAlignment="Center"
+                                                   Text="仲裁" />
+                                        <ComboBox Width="110"
+                                                  Margin="0,0,12,4"
                                                   VerticalAlignment="Center"
-                                                  ItemsSource="{x:Static session:ChannelState.DataBitrates}"
-                                                  SelectedItem="{Binding DataBitrate}">
+                                                  ItemsSource="{x:Static session:ChannelState.ArbitrationBitrates}"
+                                                  SelectedItem="{Binding Bitrate}">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate x:DataType="sys:Int32">
                                                     <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
-                                    </StackPanel>
-                                    <CheckBox Margin="0,0,12,4"
-                                              VerticalAlignment="Center"
-                                              Content="只听"
-                                              IsChecked="{Binding ListenOnly}" />
-                                    <CheckBox Margin="0,0,12,4"
-                                              VerticalAlignment="Center"
-                                              Content="环回"
-                                              IsChecked="{Binding Loopback}" />
-                                    <Expander Margin="0,0,0,4"
-                                              VerticalAlignment="Center"
-                                              Header="更多">
-                                        <CheckBox Content="OneShot" IsChecked="{Binding OneShot}" />
-                                    </Expander>
-                                </WrapPanel>
+                                        <CheckBox Classes="compact"
+                                                  Margin="0,0,10,4"
+                                                  Content="FD"
+                                                  IsChecked="{Binding FdEnabled}" />
+                                        <StackPanel Margin="0,0,10,4"
+                                                    Orientation="Horizontal"
+                                                    Spacing="6"
+                                                    IsVisible="{Binding FdEnabled}">
+                                            <TextBlock Classes="filter-label" VerticalAlignment="Center" Text="数据段" />
+                                            <ComboBox Width="90"
+                                                      VerticalAlignment="Center"
+                                                      ItemsSource="{x:Static session:ChannelState.DataBitrates}"
+                                                      SelectedItem="{Binding DataBitrate}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="sys:Int32">
+                                                        <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+                                        <CheckBox Classes="compact"
+                                                  Margin="0,0,10,4"
+                                                  Content="只听"
+                                                  IsChecked="{Binding ListenOnly}" />
+                                        <CheckBox Classes="compact"
+                                                  Margin="0,0,10,4"
+                                                  Content="环回"
+                                                  IsChecked="{Binding Loopback}" />
+                                        <Expander Classes="more" Margin="0,0,0,4" Header="更多">
+                                            <CheckBox Classes="compact"
+                                                      Margin="8,4,0,0"
+                                                      Content="OneShot"
+                                                      IsChecked="{Binding OneShot}" />
+                                        </Expander>
+                                    </WrapPanel>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </StackPanel>
         </Border>
-        <Border Grid.Row="2"
-                Padding="12,8"
-                BorderBrush="#33000000"
-                BorderThickness="0,0,0,1">
+
+        <Border Grid.Row="2" Classes="panel" Padding="14,10,14,8">
             <DockPanel>
                 <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-                    <TextBlock Margin="0,0,12,4"
+                    <TextBlock Classes="section"
+                               Margin="0,0,12,4"
                                VerticalAlignment="Center"
-                               FontWeight="SemiBold"
                                Text="Display Filter" />
-                    <TextBlock Margin="0,0,4,4"
-                               VerticalAlignment="Center"
-                               Text="通道" />
-                    <CheckBox Margin="0,0,4,4"
-                              VerticalAlignment="Center"
-                              Content="0"
-                              IsChecked="{Binding DisplayFilter.ShowChannel0}" />
-                    <CheckBox Margin="0,0,12,4"
-                              VerticalAlignment="Center"
-                              Content="1"
-                              IsChecked="{Binding DisplayFilter.ShowChannel1}" />
-                    <TextBlock Margin="0,0,4,4"
-                               VerticalAlignment="Center"
-                               Text="Kind" />
-                    <CheckBox Margin="0,0,4,4"
-                              VerticalAlignment="Center"
-                              Content="Rx"
-                              IsChecked="{Binding DisplayFilter.ShowRx}" />
-                    <CheckBox Margin="0,0,4,4"
-                              VerticalAlignment="Center"
-                              Content="Echo"
-                              IsChecked="{Binding DisplayFilter.ShowEcho}" />
-                    <CheckBox Margin="0,0,12,4"
-                              VerticalAlignment="Center"
-                              Content="Error"
-                              IsChecked="{Binding DisplayFilter.ShowError}" />
-                    <CheckBox Margin="0,0,4,4"
-                              VerticalAlignment="Center"
-                              Content="标准"
-                              IsChecked="{Binding DisplayFilter.ShowStandard}" />
-                    <CheckBox Margin="0,0,12,4"
-                              VerticalAlignment="Center"
-                              Content="扩展"
-                              IsChecked="{Binding DisplayFilter.ShowExtended}" />
-                    <CheckBox Margin="0,0,4,4"
-                              VerticalAlignment="Center"
-                              Content="经典"
-                              IsChecked="{Binding DisplayFilter.ShowClassic}" />
-                    <CheckBox Margin="0,0,12,4"
-                              VerticalAlignment="Center"
-                              Content="FD"
-                              IsChecked="{Binding DisplayFilter.ShowFd}" />
-                    <CheckBox Margin="0,0,4,4"
-                              VerticalAlignment="Center"
-                              Content="数据"
-                              IsChecked="{Binding DisplayFilter.ShowData}" />
-                    <CheckBox Margin="0,0,12,4"
-                              VerticalAlignment="Center"
-                              Content="Remote"
-                              IsChecked="{Binding DisplayFilter.ShowRemote}" />
-                    <TextBlock Margin="0,0,4,4"
-                               VerticalAlignment="Center"
-                               Text="ID" />
-                    <TextBox Width="120"
-                             Margin="0,0,8,4"
-                             VerticalAlignment="Center"
-                             PlaceholderText="100 或 100-1FF"
-                             Text="{Binding DisplayFilter.IdText}" />
-                    <TextBlock Margin="0,0,0,4"
-                               VerticalAlignment="Center"
-                               Foreground="#B00020"
-                               Text="{Binding DisplayFilter.FilterError}" />
-                </WrapPanel>
-                <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto,Auto" Margin="0,0,0,8">
-                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                        <RadioButton Content="Trace"
-                                     GroupName="ReceiveMode"
-                                     FontWeight="SemiBold"
-                                     IsChecked="{Binding IsTraceMode}" />
-                        <RadioButton Content="Latest"
-                                     GroupName="ReceiveMode"
-                                     FontWeight="SemiBold"
-                                     IsChecked="{Binding IsLatestMode}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,4,4">
+                        <TextBlock Classes="filter-label" Text="通道" />
+                        <CheckBox Classes="compact"
+                                  Content="0"
+                                  IsChecked="{Binding DisplayFilter.ShowChannel0}" />
+                        <CheckBox Classes="compact"
+                                  Content="1"
+                                  IsChecked="{Binding DisplayFilter.ShowChannel1}" />
                     </StackPanel>
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <CheckBox Content="暂停" IsChecked="{Binding Paused}" VerticalAlignment="Center" />
-                        <Button Content="清空" Command="{Binding Clear}" />
-                        <Button Content="保存 Log" Click="OnSaveLogClick" />
+                    <Rectangle Classes="vdiv" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,4,4">
+                        <TextBlock Classes="filter-label" Text="Kind" />
+                        <CheckBox Classes="compact"
+                                  Content="Rx"
+                                  IsChecked="{Binding DisplayFilter.ShowRx}" />
+                        <CheckBox Classes="compact"
+                                  Content="Echo"
+                                  IsChecked="{Binding DisplayFilter.ShowEcho}" />
+                        <CheckBox Classes="compact"
+                                  Content="Error"
+                                  IsChecked="{Binding DisplayFilter.ShowError}" />
+                    </StackPanel>
+                    <Rectangle Classes="vdiv" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,4,4">
+                        <TextBlock Classes="filter-label" Text="格式" />
+                        <CheckBox Classes="compact"
+                                  Content="标准"
+                                  IsChecked="{Binding DisplayFilter.ShowStandard}" />
+                        <CheckBox Classes="compact"
+                                  Content="扩展"
+                                  IsChecked="{Binding DisplayFilter.ShowExtended}" />
+                        <CheckBox Classes="compact"
+                                  Content="经典"
+                                  IsChecked="{Binding DisplayFilter.ShowClassic}" />
+                        <CheckBox Classes="compact"
+                                  Content="FD"
+                                  IsChecked="{Binding DisplayFilter.ShowFd}" />
+                    </StackPanel>
+                    <Rectangle Classes="vdiv" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,4,4">
+                        <CheckBox Classes="compact"
+                                  Content="数据"
+                                  IsChecked="{Binding DisplayFilter.ShowData}" />
+                        <CheckBox Classes="compact"
+                                  Content="Remote"
+                                  IsChecked="{Binding DisplayFilter.ShowRemote}" />
+                    </StackPanel>
+                    <Rectangle Classes="vdiv" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4" Spacing="6">
+                        <TextBlock Classes="filter-label" Text="ID" />
+                        <TextBox Width="148"
+                                 Classes="cell mono"
+                                 VerticalAlignment="Center"
+                                 PlaceholderText="100 或 100-1FF"
+                                 Text="{Binding DisplayFilter.IdText}" />
+                        <TextBlock Classes="error"
+                                   Text="{Binding DisplayFilter.FilterError}" />
+                    </StackPanel>
+                </WrapPanel>
+                <Grid DockPanel.Dock="Top"
+                      ColumnDefinitions="Auto,*,Auto"
+                      Margin="0,0,0,8">
+                    <Border Classes="segment-host">
+                        <StackPanel Orientation="Horizontal" Spacing="0">
+                            <RadioButton Classes="seg"
+                                         Content="Trace"
+                                         GroupName="ReceiveMode"
+                                         IsChecked="{Binding IsTraceMode}" />
+                            <RadioButton Classes="seg"
+                                         Content="Latest"
+                                         GroupName="ReceiveMode"
+                                         IsChecked="{Binding IsLatestMode}" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="8">
+                        <CheckBox Classes="compact"
+                                  Content="暂停"
+                                  IsChecked="{Binding Paused}" />
+                        <Button Classes="compact" Content="清空" Command="{Binding Clear}" />
+                        <Button Classes="compact" Content="保存 Log" Click="OnSaveLogClick" />
                     </StackPanel>
                 </Grid>
                 <Grid>
                     <Grid IsVisible="{Binding IsTraceMode}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Grid ColumnDefinitions="80,56,56,80,36,36,36,36,36,72,44,*" Margin="4,0,20,4">
-                            <TextBlock Text="相对时间" />
-                            <TextBlock Grid.Column="1" Text="Channel" />
-                            <TextBlock Grid.Column="2" Text="Kind" />
-                            <TextBlock Grid.Column="3" Text="ID" />
-                            <TextBlock Grid.Column="4" Text="Ext" />
-                            <TextBlock Grid.Column="5" Text="RTR" />
-                            <TextBlock Grid.Column="6" Text="FD" />
-                            <TextBlock Grid.Column="7" Text="BRS" />
-                            <TextBlock Grid.Column="8" Text="ESI" />
-                            <TextBlock Grid.Column="9" Text="Overflow" />
-                            <TextBlock Grid.Column="10" Text="长度" />
-                            <TextBlock Grid.Column="11" Text="数据" />
-                        </Grid>
-                        <ListBox x:Name="TraceList"
-                                 Grid.Row="1"
-                                 ItemsSource="{Binding Trace}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="session:FrameRow">
-                                    <Grid ColumnDefinitions="80,56,56,80,36,36,36,36,36,72,44,*">
-                                        <TextBlock Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Channel}" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Kind}" />
-                                        <TextBlock Grid.Column="3" Text="{Binding IdHex}" />
-                                        <CheckBox Grid.Column="4" IsChecked="{Binding Extended, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="5" IsChecked="{Binding Remote, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="6" IsChecked="{Binding IsFd, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="7" IsChecked="{Binding BitRateSwitch, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="8" IsChecked="{Binding ErrorStateIndicator, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="9" IsChecked="{Binding Overflow, Mode=OneWay}" IsEnabled="False" />
-                                        <TextBlock Grid.Column="10" Text="{Binding Length}" />
-                                        <TextBlock Grid.Column="11" Text="{Binding DataHex}" />
+                        <Border Classes="table">
+                            <DockPanel>
+                                <Border Classes="table-header" DockPanel.Dock="Top">
+                                    <Grid ColumnDefinitions="96,52,70,96,210,40,*,16">
+                                        <TextBlock Classes="col-header" Text="相对时间" />
+                                        <TextBlock Grid.Column="1" Classes="col-header" Text="CH" />
+                                        <TextBlock Grid.Column="2" Classes="col-header" Text="Kind" />
+                                        <TextBlock Grid.Column="3" Classes="col-header" Text="ID" />
+                                        <TextBlock Grid.Column="4" Classes="col-header" Text="标志" />
+                                        <TextBlock Grid.Column="5" Classes="col-header" Text="长度" />
+                                        <TextBlock Grid.Column="6" Classes="col-header" Text="数据" />
                                     </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                </Border>
+                                <Grid>
+                                    <TextBlock Classes="hint"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False"
+                                               IsVisible="{Binding TraceIsEmpty}"
+                                               MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" Text="尚无帧。打开设备并启动通道后，收到的帧会出现在这里。" />
+                                    <ListBox x:Name="TraceList"
+                                             Classes="frame-grid"
+                                             ItemsSource="{Binding Trace}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="session:FrameRow">
+                                            <Grid ColumnDefinitions="96,52,70,96,210,40,*">
+                                                <TextBlock Classes="mono"
+                                                           Foreground="#475569"
+                                                           Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
+                                                <Border Grid.Column="1"
+                                                        Classes="badge"
+                                                        Background="{Binding Channel, Converter={StaticResource ChannelBrush}}">
+                                                    <TextBlock Text="{Binding Channel}" />
+                                                </Border>
+                                                <Border Grid.Column="2"
+                                                        Classes="badge"
+                                                        Background="{Binding Kind, Converter={StaticResource KindBrush}}">
+                                                    <TextBlock Text="{Binding Kind}" />
+                                                </Border>
+                                                <TextBlock Grid.Column="3"
+                                                           Classes="mono"
+                                                           FontWeight="SemiBold"
+                                                           Text="{Binding IdHex}" />
+                                                <StackPanel Grid.Column="4" Orientation="Horizontal">
+                                                    <Border Classes="tag ext" IsVisible="{Binding Extended}">
+                                                        <TextBlock Text="EXT" />
+                                                    </Border>
+                                                    <Border Classes="tag rtr" IsVisible="{Binding Remote}">
+                                                        <TextBlock Text="RTR" />
+                                                    </Border>
+                                                    <Border Classes="tag fd" IsVisible="{Binding IsFd}">
+                                                        <TextBlock Text="FD" />
+                                                    </Border>
+                                                    <Border Classes="tag brs" IsVisible="{Binding BitRateSwitch}">
+                                                        <TextBlock Text="BRS" />
+                                                    </Border>
+                                                    <Border Classes="tag esi" IsVisible="{Binding ErrorStateIndicator}">
+                                                        <TextBlock Text="ESI" />
+                                                    </Border>
+                                                    <Border Classes="tag ovf" IsVisible="{Binding Overflow}">
+                                                        <TextBlock Text="OVF" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="5"
+                                                           Classes="mono"
+                                                           Text="{Binding Length}" />
+                                                <TextBlock Grid.Column="6"
+                                                           Classes="mono"
+                                                           Text="{Binding DataHex}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding DataHex}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                </Grid>
+                            </DockPanel>
+                        </Border>
                     </Grid>
                     <Grid IsVisible="{Binding IsLatestMode}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Grid ColumnDefinitions="80,56,56,48,80,36,36,36,36,36,72,44,*" Margin="4,0,20,4">
-                            <TextBlock Text="相对时间" />
-                            <TextBlock Grid.Column="1" Text="Channel" />
-                            <TextBlock Grid.Column="2" Text="Kind" />
-                            <TextBlock Grid.Column="3" Text="计数" />
-                            <TextBlock Grid.Column="4" Text="ID" />
-                            <TextBlock Grid.Column="5" Text="Ext" />
-                            <TextBlock Grid.Column="6" Text="RTR" />
-                            <TextBlock Grid.Column="7" Text="FD" />
-                            <TextBlock Grid.Column="8" Text="BRS" />
-                            <TextBlock Grid.Column="9" Text="ESI" />
-                            <TextBlock Grid.Column="10" Text="Overflow" />
-                            <TextBlock Grid.Column="11" Text="长度" />
-                            <TextBlock Grid.Column="12" Text="数据" />
-                        </Grid>
-                        <ListBox x:Name="LatestList"
-                                 Grid.Row="1"
-                                 ItemsSource="{Binding Latest}">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="session:LatestRow">
-                                    <Grid ColumnDefinitions="80,56,56,48,80,36,36,36,36,36,72,44,*">
-                                        <TextBlock Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Channel}" />
-                                        <TextBlock Grid.Column="2" Text="{Binding Kind}" />
-                                        <TextBlock Grid.Column="3" Text="{Binding Count}" />
-                                        <TextBlock Grid.Column="4" Text="{Binding IdHex}" />
-                                        <CheckBox Grid.Column="5" IsChecked="{Binding Extended, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="6" IsChecked="{Binding Remote, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="7" IsChecked="{Binding IsFd, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="8" IsChecked="{Binding BitRateSwitch, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="9" IsChecked="{Binding ErrorStateIndicator, Mode=OneWay}" IsEnabled="False" />
-                                        <CheckBox Grid.Column="10" IsChecked="{Binding Overflow, Mode=OneWay}" IsEnabled="False" />
-                                        <TextBlock Grid.Column="11" Text="{Binding Length}" />
-                                        <TextBlock Grid.Column="12" Text="{Binding DataHex}" />
+                        <Border Classes="table">
+                            <DockPanel>
+                                <Border Classes="table-header" DockPanel.Dock="Top">
+                                    <Grid ColumnDefinitions="96,52,70,52,96,210,40,*,16">
+                                        <TextBlock Classes="col-header" Text="相对时间" />
+                                        <TextBlock Grid.Column="1" Classes="col-header" Text="CH" />
+                                        <TextBlock Grid.Column="2" Classes="col-header" Text="Kind" />
+                                        <TextBlock Grid.Column="3" Classes="col-header" Text="计数" />
+                                        <TextBlock Grid.Column="4" Classes="col-header" Text="ID" />
+                                        <TextBlock Grid.Column="5" Classes="col-header" Text="标志" />
+                                        <TextBlock Grid.Column="6" Classes="col-header" Text="长度" />
+                                        <TextBlock Grid.Column="7" Classes="col-header" Text="数据" />
                                     </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
-                </Grid>
-            </DockPanel>
-        </Border>
-        <Border Grid.Row="3"
-                Padding="12,8"
-                Height="220"
-                BorderBrush="#33000000"
-                BorderThickness="0,0,0,1">
-            <DockPanel>
-                <TextBlock DockPanel.Dock="Top"
-                           Margin="0,0,0,8"
-                           FontWeight="SemiBold"
-                           Text="TxSlot" />
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Grid ColumnDefinitions="70,90,40,40,40,40,*,80,50,80" Margin="4,0,20,4">
-                        <TextBlock Text="Channel" />
-                        <TextBlock Grid.Column="1" Text="ID" />
-                        <TextBlock Grid.Column="2" Text="Ext" />
-                        <TextBlock Grid.Column="3" Text="RTR" />
-                        <TextBlock Grid.Column="4" Text="FD" />
-                        <TextBlock Grid.Column="5" Text="BRS" />
-                        <TextBlock Grid.Column="6" Text="数据" />
-                        <TextBlock Grid.Column="7" Text="周期 ms" />
-                        <TextBlock Grid.Column="8" Text="使能" />
-                    </Grid>
-                    <ListBox Grid.Row="1" ItemsSource="{Binding TxSlots}">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="session:TxSlot">
-                                <Grid ColumnDefinitions="70,90,40,40,40,40,*,80,50,80">
-                                    <TextBox Text="{Binding Channel}" />
-                                    <TextBox Grid.Column="1" Text="{Binding IdHex}" />
-                                    <CheckBox Grid.Column="2" IsChecked="{Binding Extended}" />
-                                    <CheckBox Grid.Column="3" IsChecked="{Binding Remote}" />
-                                    <CheckBox Grid.Column="4" IsChecked="{Binding Fd}" />
-                                    <CheckBox Grid.Column="5" IsChecked="{Binding BitRateSwitch}" />
-                                    <TextBox Grid.Column="6" Text="{Binding DataHex}" />
-                                    <TextBox Grid.Column="7" Text="{Binding PeriodMs}" />
-                                    <CheckBox Grid.Column="8" IsChecked="{Binding Enabled}" />
-                                    <Button Grid.Column="9" Content="发送" Command="{Binding Send}" />
+                                </Border>
+                                <Grid>
+                                    <TextBlock Classes="hint"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                                IsVisible="{Binding LatestIsEmpty}"
+                                           MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" Text="尚无帧。Latest 按键覆盖显示最新一帧。" />
+                                <ListBox x:Name="LatestList"
+                                         Classes="frame-grid"
+                                         ItemsSource="{Binding Latest}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="session:LatestRow">
+                                            <Grid ColumnDefinitions="96,52,70,52,96,210,40,*">
+                                                <TextBlock Classes="mono"
+                                                           Foreground="#475569"
+                                                           Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
+                                                <Border Grid.Column="1"
+                                                        Classes="badge"
+                                                        Background="{Binding Channel, Converter={StaticResource ChannelBrush}}">
+                                                    <TextBlock Text="{Binding Channel}" />
+                                                </Border>
+                                                <Border Grid.Column="2"
+                                                        Classes="badge"
+                                                        Background="{Binding Kind, Converter={StaticResource KindBrush}}">
+                                                    <TextBlock Text="{Binding Kind}" />
+                                                </Border>
+                                                <TextBlock Grid.Column="3"
+                                                           Classes="mono"
+                                                           Text="{Binding Count}" />
+                                                <TextBlock Grid.Column="4"
+                                                           Classes="mono"
+                                                           FontWeight="SemiBold"
+                                                           Text="{Binding IdHex}" />
+                                                <StackPanel Grid.Column="5" Orientation="Horizontal">
+                                                    <Border Classes="tag ext" IsVisible="{Binding Extended}">
+                                                        <TextBlock Text="EXT" />
+                                                    </Border>
+                                                    <Border Classes="tag rtr" IsVisible="{Binding Remote}">
+                                                        <TextBlock Text="RTR" />
+                                                    </Border>
+                                                    <Border Classes="tag fd" IsVisible="{Binding IsFd}">
+                                                        <TextBlock Text="FD" />
+                                                    </Border>
+                                                    <Border Classes="tag brs" IsVisible="{Binding BitRateSwitch}">
+                                                        <TextBlock Text="BRS" />
+                                                    </Border>
+                                                    <Border Classes="tag esi" IsVisible="{Binding ErrorStateIndicator}">
+                                                        <TextBlock Text="ESI" />
+                                                    </Border>
+                                                    <Border Classes="tag ovf" IsVisible="{Binding Overflow}">
+                                                        <TextBlock Text="OVF" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="6"
+                                                           Classes="mono"
+                                                           Text="{Binding Length}" />
+                                                <TextBlock Grid.Column="7"
+                                                           Classes="mono"
+                                                           Text="{Binding DataHex}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding DataHex}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                                 </Grid>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
                 </Grid>
             </DockPanel>
         </Border>
-        <Border Grid.Row="4" Padding="12,8">
-            <StackPanel Orientation="Horizontal" Spacing="16">
-                <TextBlock FontWeight="SemiBold" VerticalAlignment="Center" Text="状态" />
-                <ItemsControl ItemsSource="{Binding Channels}" VerticalAlignment="Center">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="12" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="session:ChannelState">
-                            <StackPanel Orientation="Horizontal" Spacing="4">
-                                <TextBlock VerticalAlignment="Center" Text="{Binding Index, StringFormat='通道 {0}'}" />
-                                <TextBlock VerticalAlignment="Center" IsVisible="{Binding IsRunning}" Text="运行" />
-                                <TextBlock VerticalAlignment="Center" IsVisible="{Binding !IsRunning}" Text="停止" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <TextBlock VerticalAlignment="Center" Text="{Binding Status.RxCount, StringFormat='RX {0}'}" />
-                <TextBlock VerticalAlignment="Center" Text="{Binding Status.TxCount, StringFormat='TX (Echo) {0}'}" />
-                <TextBlock VerticalAlignment="Center" Text="{Binding Status.ErrorCount, StringFormat='Error {0}'}" />
-                <TextBlock VerticalAlignment="Center" Text="{Binding Status.OverflowCount, StringFormat='Overflow {0}'}" />
-                <TextBlock VerticalAlignment="Center" Text="{Binding PauseDroppedCount, StringFormat='暂停丢弃 {0}'}" />
-                <TextBlock VerticalAlignment="Center" Text="{Binding LastError}" />
-            </StackPanel>
+
+        <GridSplitter Grid.Row="3" Classes="row" />
+
+        <Border Grid.Row="4" Classes="panel" Padding="14,8">
+            <DockPanel>
+                <Grid DockPanel.Dock="Top"
+                      ColumnDefinitions="Auto,*,Auto"
+                      Margin="0,0,0,6">
+                    <TextBlock Classes="section"
+                               Margin="0"
+                               VerticalAlignment="Center"
+                               Text="TxSlot" />
+                    <TextBlock Grid.Column="1"
+                               Classes="hint"
+                               Margin="12,0,12,0"
+                               VerticalAlignment="Center"
+                               Text="周期 0 = 发送一次；大于 0 且使能 = 周期发送。" />
+                    <Button Grid.Column="2"
+                            Classes="compact"
+                            Content="添加"
+                            Command="{Binding AddTxSlot}"
+                            IsEnabled="{Binding CanAddTxSlot}"
+                            ToolTip.Tip="最多 16 行" />
+                </Grid>
+                <Border Classes="table">
+                    <DockPanel>
+                        <Border Classes="table-header"
+                                DockPanel.Dock="Top"
+                                Padding="10,7,12,7">
+                            <Grid ColumnDefinitions="28,64,100,200,64,*,76,52,72,32"
+                                  ColumnSpacing="8">
+                                <TextBlock Classes="col-header"
+                                           HorizontalAlignment="Center"
+                                           Text="#" />
+                                <TextBlock Grid.Column="1"
+                                           Classes="col-header"
+                                           HorizontalAlignment="Center"
+                                           Text="CH" />
+                                <TextBlock Grid.Column="2" Classes="col-header" Text="ID" />
+                                <TextBlock Grid.Column="3" Classes="col-header" Text="标志" />
+                                <TextBlock Grid.Column="4"
+                                           Classes="col-header"
+                                           HorizontalAlignment="Center"
+                                           Text="DLC"
+                                           ToolTip.Tip="数据长度（字节）" />
+                                <TextBlock Grid.Column="5" Classes="col-header" Text="数据" />
+                                <TextBlock Grid.Column="6"
+                                           Classes="col-header"
+                                           Text="周期 ms"
+                                           ToolTip.Tip="0 表示只发一次" />
+                                <TextBlock Grid.Column="7"
+                                           Classes="col-header"
+                                           HorizontalAlignment="Center"
+                                           Text="使能" />
+                                <TextBlock Grid.Column="8"
+                                           Classes="col-header"
+                                           HorizontalAlignment="Center"
+                                           Text="发送" />
+                            </Grid>
+                        </Border>
+                        <ScrollViewer Classes="tx-scroll">
+                            <ItemsControl Classes="tx-list" ItemsSource="{Binding TxSlots}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="session:TxSlot">
+                                        <Border Classes="tx-row">
+                                            <Grid ColumnDefinitions="28,64,100,200,64,*,76,52,72,32"
+                                                  ColumnSpacing="8">
+                                                <TextBlock Classes="mono"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#94A3B8"
+                                                           Text="{Binding Index}" />
+                                                <ComboBox Grid.Column="1"
+                                                          Classes="cell"
+                                                          ItemsSource="{x:Static session:TxSlot.ChannelChoices}"
+                                                          SelectedItem="{Binding Channel}" />
+                                                <TextBox Grid.Column="2"
+                                                         Classes="cell mono"
+                                                         Text="{Binding IdHex}" />
+                                                <StackPanel Grid.Column="3"
+                                                            Orientation="Horizontal"
+                                                            Spacing="6"
+                                                            VerticalAlignment="Center">
+                                                    <ToggleButton Classes="flag ext"
+                                                                  Content="EXT"
+                                                                  IsChecked="{Binding Extended}"
+                                                                  ToolTip.Tip="扩展帧" />
+                                                    <ToggleButton Classes="flag rtr"
+                                                                  Content="RTR"
+                                                                  IsChecked="{Binding Remote}"
+                                                                  ToolTip.Tip="Remote" />
+                                                    <ToggleButton Classes="flag fd"
+                                                                  Content="FD"
+                                                                  IsChecked="{Binding Fd}"
+                                                                  ToolTip.Tip="CAN FD" />
+                                                    <ToggleButton Classes="flag brs"
+                                                                  Content="BRS"
+                                                                  IsChecked="{Binding BitRateSwitch}"
+                                                                  IsEnabled="{Binding Fd}"
+                                                                  ToolTip.Tip="Bit Rate Switch" />
+                                                </StackPanel>
+                                                <ComboBox Grid.Column="4"
+                                                          Classes="cell"
+                                                          ItemsSource="{Binding LengthChoices}"
+                                                          SelectedItem="{Binding Length}"
+                                                          ToolTip.Tip="数据长度（字节）" />
+                                                <TextBox Grid.Column="5"
+                                                         Classes="cell mono"
+                                                         PlaceholderText="十六进制字节"
+                                                         IsEnabled="{Binding !Remote}"
+                                                         Text="{Binding DataHex}" />
+                                                <TextBox Grid.Column="6"
+                                                         Classes="cell mono"
+                                                         Text="{Binding PeriodMs, UpdateSourceTrigger=LostFocus}"
+                                                         ToolTip.Tip="0 表示只发一次" />
+                                                <ToggleButton Grid.Column="7"
+                                                              Classes="switch"
+                                                              IsChecked="{Binding Enabled}"
+                                                              ToolTip.Tip="周期大于 0 时按周期发送" />
+                                                <Button Grid.Column="8"
+                                                        Classes="compact accent"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Center"
+                                                        Command="{Binding Send}"
+                                                        Content="发送" />
+                                                <Button Grid.Column="9"
+                                                        Classes="quiet"
+                                                        Command="{Binding Remove}"
+                                                        IsEnabled="{Binding CanRemove}"
+                                                        ToolTip.Tip="删除此行"
+                                                        Content="✕" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <Border Grid.Row="5" Classes="status">
+            <DockPanel VerticalAlignment="Center">
+                <TextBlock DockPanel.Dock="Right"
+                           Classes="error"
+                           Margin="16,0,0,0"
+                           MaxWidth="420"
+                           VerticalAlignment="Center"
+                           Text="{Binding LastError}"
+                           ToolTip.Tip="{Binding LastError}" />
+                <StackPanel Orientation="Horizontal"
+                            Spacing="16"
+                            VerticalAlignment="Center">
+                    <TextBlock Classes="section"
+                               Margin="0"
+                               VerticalAlignment="Center"
+                               Text="状态" />
+                    <ItemsControl ItemsSource="{Binding Channels}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="10" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="session:ChannelState">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="6"
+                                            VerticalAlignment="Center">
+                                    <Ellipse Width="8"
+                                             Height="8"
+                                             VerticalAlignment="Center"
+                                             Fill="#10B981"
+                                             IsVisible="{Binding IsRunning}" />
+                                    <Ellipse Width="8"
+                                             Height="8"
+                                             VerticalAlignment="Center"
+                                             Fill="#CBD5E1"
+                                             IsVisible="{Binding !IsRunning}" />
+                                    <TextBlock Classes="stat"
+                                               Text="{Binding Index, StringFormat='通道 {0}'}" />
+                                    <TextBlock Classes="stat"
+                                               Foreground="#047857"
+                                               IsVisible="{Binding IsRunning}"
+                                               Text="运行" />
+                                    <TextBlock Classes="stat"
+                                               Foreground="#94A3B8"
+                                               IsVisible="{Binding !IsRunning}"
+                                               Text="停止" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="stat-label" Text="RX" />
+                        <TextBlock Classes="stat mono" Text="{Binding Status.RxCount}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="stat-label" Text="TX (Echo)" />
+                        <TextBlock Classes="stat mono" Text="{Binding Status.TxCount}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="stat-label" Text="Error" />
+                        <TextBlock Classes="stat mono" Text="{Binding Status.ErrorCount}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="stat-label" Text="Overflow" />
+                        <TextBlock Classes="stat mono" Text="{Binding Status.OverflowCount}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Classes="stat-label" Text="暂停丢弃" />
+                        <TextBlock Classes="stat mono" Text="{Binding PauseDroppedCount}" />
+                    </StackPanel>
+                </StackPanel>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

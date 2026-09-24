@@ -22,7 +22,7 @@ namespace GsCan.View.Session
         private readonly List<FrameRow> _pendingRows = new List<FrameRow>();
         private readonly TxScheduler _scheduler;
         private readonly List<ChannelConfig> _heldChannels = new List<ChannelConfig>();
-        private readonly bool[] _heldEnabled = new bool[TxSlot.SlotCount];
+        private readonly List<bool> _heldEnabled = new List<bool>();
         private IOpenedDevice? _opened;
         private bool _suppressPersist;
         private IReadOnlyList<DeviceInfo> _deviceList;
@@ -70,16 +70,12 @@ namespace GsCan.View.Session
             _trace = new TraceBuffer(Trace);
             _latest = new LatestView(Latest);
             _scheduler = new TxScheduler(clock ?? new RealtimeClock(), CyclicSend);
-            var slots = new TxSlot[TxSlot.SlotCount];
-            for (int i = 0; i < slots.Length; i++)
-            {
-                slots[i] = new TxSlot(i, SendOnce);
-                slots[i].PropertyChanged += OnTxSlotPropertyChanged;
-            }
-
-            TxSlots = slots;
+            TxSlots = new ObservableCollection<TxSlot>();
+            AppendSlot();
             DisplayFilter = new DisplayFilter();
             Status = new SessionStatus();
+            Trace.CollectionChanged += (_, _) => Raise(nameof(TraceIsEmpty));
+            Latest.CollectionChanged += (_, _) => Raise(nameof(LatestIsEmpty));
             RestoreFromStore();
             DisplayFilter.PropertyChanged += OnDisplayFilterPropertyChanged;
         }
@@ -100,8 +96,17 @@ namespace GsCan.View.Session
 
                 _openedPath = value;
                 Raise(nameof(OpenedPath));
+                Raise(nameof(OpenedLabel));
+                Raise(nameof(IsDeviceOpen));
             }
         }
+
+        public bool IsDeviceOpen => OpenedPath != null;
+
+        public string? OpenedLabel =>
+            string.IsNullOrEmpty(_openedPath)
+                ? null
+                : GsCan.View.DeviceLabel.Summary(_openedPath, Channels.Count);
 
         public IReadOnlyList<DeviceInfo> DeviceList
         {
@@ -130,6 +135,7 @@ namespace GsCan.View.Session
                 }
 
                 Raise(nameof(Channels));
+                Raise(nameof(OpenedLabel));
             }
         }
 
@@ -167,6 +173,10 @@ namespace GsCan.View.Session
         public ObservableCollection<FrameRow> Trace { get; }
 
         public ObservableCollection<LatestRow> Latest { get; }
+
+        public bool TraceIsEmpty => Trace.Count == 0;
+
+        public bool LatestIsEmpty => Latest.Count == 0;
 
         public ReceiveMode ReceiveMode
         {
@@ -211,7 +221,11 @@ namespace GsCan.View.Session
 
         public DisplayFilter DisplayFilter { get; }
 
-        public IReadOnlyList<TxSlot> TxSlots { get; }
+        public ObservableCollection<TxSlot> TxSlots { get; }
+
+        public bool CanAddTxSlot => TxSlots.Count < TxSlot.MaxSlotCount;
+
+        public bool CanRemoveTxSlot => TxSlots.Count > 1;
 
         public SessionStatus Status { get; }
 
@@ -248,7 +262,12 @@ namespace GsCan.View.Session
         public void RefreshDevices()
         {
             var listed = _port.List() ?? Array.Empty<DeviceInfo>();
-            DeviceList = new List<DeviceInfo>(listed).ToArray();
+            var snapshot = new List<DeviceInfo>(listed).ToArray();
+            if (!SameDeviceList(_deviceList, snapshot))
+            {
+                DeviceList = snapshot;
+            }
+
             var path = SelectedDevice?.Path;
             if (string.IsNullOrEmpty(path))
             {
@@ -418,6 +437,43 @@ namespace GsCan.View.Session
             new TraceLogWriter().Write(path, Trace);
         }
 
+        public void AddTxSlot()
+        {
+            if (!CanAddTxSlot)
+            {
+                return;
+            }
+
+            AppendSlot();
+            Persist();
+        }
+
+        public void RemoveTxSlot(TxSlot slot)
+        {
+            if (slot == null || TxSlots.Count <= 1)
+            {
+                return;
+            }
+
+            var index = TxSlots.IndexOf(slot);
+            if (index < 0)
+            {
+                return;
+            }
+
+            slot.PropertyChanged -= OnTxSlotPropertyChanged;
+            _scheduler.Stop(slot.Index);
+            TxSlots.RemoveAt(index);
+            if (index < _heldEnabled.Count)
+            {
+                _heldEnabled.RemoveAt(index);
+            }
+
+            ReindexSlots();
+            RefreshSlotListFlags();
+            Persist();
+        }
+
         public void SendOnce(int slotIndex)
         {
             if (_opened == null || slotIndex < 0 || slotIndex >= TxSlots.Count)
@@ -483,7 +539,10 @@ namespace GsCan.View.Session
                 return;
             }
 
-            if (e.PropertyName == nameof(TxSlot.Enabled) && !_suppressPersist)
+            if (e.PropertyName == nameof(TxSlot.Enabled)
+                && !_suppressPersist
+                && slot.Index >= 0
+                && slot.Index < _heldEnabled.Count)
             {
                 _heldEnabled[slot.Index] = slot.Enabled;
             }
@@ -666,6 +725,11 @@ namespace GsCan.View.Session
 
         private void OnPumpError(string message)
         {
+            if (ReadPump.IsChannelNotStarted(message))
+            {
+                return;
+            }
+
             void Fail()
             {
                 Close();
@@ -948,22 +1012,113 @@ namespace GsCan.View.Session
                 return;
             }
 
-            var count = source.Count < TxSlots.Count ? source.Count : TxSlots.Count;
-            for (int i = 0; i < count; i++)
+            var rows = NormalizeTxSlotConfigs(source);
+            _scheduler.StopAll();
+            foreach (var slot in TxSlots)
             {
-                var saved = source[i];
-                var slot = TxSlots[i];
-                slot.Channel = saved.Channel;
-                slot.Id = saved.Id;
-                slot.Extended = saved.Extended;
-                slot.Remote = saved.Remote;
-                slot.Fd = saved.Fd;
-                slot.BitRateSwitch = saved.BitRateSwitch;
-                slot.DataHex = saved.DataHex ?? string.Empty;
-                slot.PeriodMs = saved.PeriodMs;
-                slot.Enabled = saved.Enabled;
-                _heldEnabled[i] = saved.Enabled;
+                slot.PropertyChanged -= OnTxSlotPropertyChanged;
             }
+
+            TxSlots.Clear();
+            _heldEnabled.Clear();
+            foreach (var saved in rows)
+            {
+                var slot = AppendSlot();
+                ApplyTxSlotConfig(slot, saved);
+                _heldEnabled[slot.Index] = saved.Enabled;
+            }
+
+            RefreshSlotListFlags();
+        }
+
+        private TxSlot AppendSlot()
+        {
+            var slot = new TxSlot(TxSlots.Count, SendOnce, RemoveTxSlot);
+            slot.PropertyChanged += OnTxSlotPropertyChanged;
+            TxSlots.Add(slot);
+            _heldEnabled.Add(false);
+            RefreshSlotListFlags();
+            return slot;
+        }
+
+        private void ReindexSlots()
+        {
+            for (int i = 0; i < TxSlots.Count; i++)
+            {
+                var slot = TxSlots[i];
+                if (slot.Index == i)
+                {
+                    continue;
+                }
+
+                _scheduler.Stop(slot.Index);
+                slot.Index = i;
+                SyncCyclic(slot);
+            }
+        }
+
+        private void RefreshSlotListFlags()
+        {
+            var canRemove = TxSlots.Count > 1;
+            foreach (var slot in TxSlots)
+            {
+                slot.CanRemove = canRemove;
+            }
+
+            Raise(nameof(CanAddTxSlot));
+            Raise(nameof(CanRemoveTxSlot));
+        }
+
+        private void ApplyTxSlotConfig(TxSlot slot, TxSlotConfig saved)
+        {
+            slot.Channel = saved.Channel;
+            slot.Id = saved.Id;
+            slot.Extended = saved.Extended;
+            slot.Remote = saved.Remote;
+            slot.Fd = saved.Fd;
+            slot.BitRateSwitch = saved.BitRateSwitch;
+            slot.DataHex = saved.DataHex ?? string.Empty;
+            slot.Length = saved.Length > 0
+                ? TxSlot.SnapLength(saved.Length, saved.Fd)
+                : TxSlot.InferLength(saved.DataHex, saved.Fd);
+            slot.PeriodMs = saved.PeriodMs;
+            slot.Enabled = saved.Enabled;
+        }
+
+        private static List<TxSlotConfig> NormalizeTxSlotConfigs(List<TxSlotConfig> source)
+        {
+            var rows = new List<TxSlotConfig>();
+            var take = source.Count < TxSlot.MaxSlotCount ? source.Count : TxSlot.MaxSlotCount;
+            for (int i = 0; i < take; i++)
+            {
+                rows.Add(source[i]);
+            }
+
+            while (rows.Count > 1 && IsDefaultTxSlot(rows[rows.Count - 1]))
+            {
+                rows.RemoveAt(rows.Count - 1);
+            }
+
+            if (rows.Count == 0)
+            {
+                rows.Add(new TxSlotConfig());
+            }
+
+            return rows;
+        }
+
+        private static bool IsDefaultTxSlot(TxSlotConfig saved)
+        {
+            return saved.Channel == 0
+                && saved.Id == 0
+                && !saved.Extended
+                && !saved.Remote
+                && !saved.Fd
+                && !saved.BitRateSwitch
+                && (saved.Length == 0 || saved.Length == TxSlot.DefaultLength)
+                && TxSlot.IsBlankData(saved.DataHex)
+                && saved.PeriodMs == 0
+                && !saved.Enabled;
         }
 
         private void Persist()
@@ -1046,11 +1201,14 @@ namespace GsCan.View.Session
             var list = new List<TxSlotConfig>(TxSlots.Count);
             foreach (var slot in TxSlots)
             {
-                if (_opened != null)
+                if (_opened != null && slot.Index >= 0 && slot.Index < _heldEnabled.Count)
                 {
                     _heldEnabled[slot.Index] = slot.Enabled;
                 }
 
+                var enabled = slot.Index >= 0 && slot.Index < _heldEnabled.Count
+                    ? _heldEnabled[slot.Index]
+                    : slot.Enabled;
                 list.Add(new TxSlotConfig
                 {
                     Channel = slot.Channel,
@@ -1059,9 +1217,10 @@ namespace GsCan.View.Session
                     Remote = slot.Remote,
                     Fd = slot.Fd,
                     BitRateSwitch = slot.BitRateSwitch,
+                    Length = slot.Length,
                     DataHex = slot.DataHex ?? string.Empty,
                     PeriodMs = slot.PeriodMs,
-                    Enabled = _heldEnabled[slot.Index]
+                    Enabled = enabled
                 });
             }
 
@@ -1102,6 +1261,24 @@ namespace GsCan.View.Session
                 Loopback = source.Loopback,
                 OneShot = source.OneShot
             };
+        }
+
+        private static bool SameDeviceList(IReadOnlyList<DeviceInfo> left, IReadOnlyList<DeviceInfo> right)
+        {
+            if (left.Count != right.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < left.Count; i++)
+            {
+                if (left[i].Path != right[i].Path || left[i].ChannelCount != right[i].ChannelCount)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

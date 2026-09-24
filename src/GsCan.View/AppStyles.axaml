@@ -1,0 +1,629 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style Selector="Window">
+        <Setter Property="FontFamily" Value="Segoe UI, Microsoft YaHei UI, Microsoft YaHei, sans-serif" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorBaseBrush}" />
+    </Style>
+
+    <Style Selector="Border.toolbar">
+        <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="14,10" />
+    </Style>
+
+    <Style Selector="Border.panel">
+        <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="14,10" />
+    </Style>
+
+    <Style Selector="Border.status">
+        <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="Border.channel-card">
+        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="Border.table">
+        <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+
+    <Style Selector="Border.table-header">
+        <Setter Property="Background" Value="#EEF2F6" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="10,7,4,7" />
+    </Style>
+
+    <Style Selector="Border.chip">
+        <Setter Property="CornerRadius" Value="11" />
+        <Setter Property="Padding" Value="10,3" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.chip.muted">
+        <Setter Property="Background" Value="#E8EDF2" />
+    </Style>
+
+    <Style Selector="Border.chip.ok">
+        <Setter Property="Background" Value="#CCFBF1" />
+    </Style>
+
+    <Style Selector="Border.chip TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Border.chip.muted TextBlock">
+        <Setter Property="Foreground" Value="#64748B" />
+    </Style>
+
+    <Style Selector="Border.chip.ok TextBlock">
+        <Setter Property="Foreground" Value="#0F766E" />
+    </Style>
+
+    <Style Selector="Border.pill">
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="8,2" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+
+    <Style Selector="Border.pill.run">
+        <Setter Property="Background" Value="#D1FAE5" />
+    </Style>
+
+    <Style Selector="Border.pill.stop">
+        <Setter Property="Background" Value="#E8EDF2" />
+    </Style>
+
+    <Style Selector="Border.pill TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="Border.pill.run TextBlock">
+        <Setter Property="Foreground" Value="#047857" />
+    </Style>
+
+    <Style Selector="Border.pill.stop TextBlock">
+        <Setter Property="Foreground" Value="#64748B" />
+    </Style>
+
+    <Style Selector="Border.badge">
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="7,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="MinWidth" Value="36" />
+    </Style>
+
+    <Style Selector="Border.badge TextBlock">
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+    </Style>
+
+    <Style Selector="Border.tag">
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="Padding" Value="5,1" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.tag TextBlock">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+    </Style>
+
+    <Style Selector="Border.tag.ext">
+        <Setter Property="Background" Value="#EEF2FF" />
+    </Style>
+    <Style Selector="Border.tag.ext TextBlock">
+        <Setter Property="Foreground" Value="#3730A3" />
+    </Style>
+    <Style Selector="Border.tag.rtr">
+        <Setter Property="Background" Value="#FEF3C7" />
+    </Style>
+    <Style Selector="Border.tag.rtr TextBlock">
+        <Setter Property="Foreground" Value="#B45309" />
+    </Style>
+    <Style Selector="Border.tag.fd">
+        <Setter Property="Background" Value="#E0F2FE" />
+    </Style>
+    <Style Selector="Border.tag.fd TextBlock">
+        <Setter Property="Foreground" Value="#0369A1" />
+    </Style>
+    <Style Selector="Border.tag.brs">
+        <Setter Property="Background" Value="#CCFBF1" />
+    </Style>
+    <Style Selector="Border.tag.brs TextBlock">
+        <Setter Property="Foreground" Value="#0F766E" />
+    </Style>
+    <Style Selector="Border.tag.esi">
+        <Setter Property="Background" Value="#FFEDD5" />
+    </Style>
+    <Style Selector="Border.tag.esi TextBlock">
+        <Setter Property="Foreground" Value="#C2410C" />
+    </Style>
+    <Style Selector="Border.tag.ovf">
+        <Setter Property="Background" Value="#FEE2E2" />
+    </Style>
+    <Style Selector="Border.tag.ovf TextBlock">
+        <Setter Property="Foreground" Value="#B91C1C" />
+    </Style>
+
+    <Style Selector="Border.segment-host">
+        <Setter Property="Background" Value="#E8EDF2" />
+        <Setter Property="CornerRadius" Value="7" />
+        <Setter Property="Padding" Value="3" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="RadioButton.seg">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        CornerRadius="5"
+                        Padding="14,5">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      RecognizesAccessKey="True"
+                                      Foreground="{TemplateBinding Foreground}" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="RadioButton.seg:pointerover">
+        <Setter Property="Background" Value="#F8FAFC" />
+    </Style>
+    <Style Selector="RadioButton.seg:checked">
+        <Setter Property="Background" Value="#0F766E" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="RadioButton.seg:checked:pointerover">
+        <Setter Property="Background" Value="#0D9488" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="TextBlock.section">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.hint">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="#94A3B8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.col-header">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#64748B" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.mono">
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBlock.stat">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="Foreground" Value="#334155" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="TextBlock.stat-label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#94A3B8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="TextBlock.filter-label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#64748B" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+    </Style>
+
+    <Style Selector="TextBlock.error">
+        <Setter Property="Foreground" Value="#B91C1C" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <Style Selector="Rectangle.vdiv">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Fill" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="Margin" Value="4,0,12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBox.cell">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ComboBox.cell">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="TextBox.mono">
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+    </Style>
+
+    <Style Selector="CheckBox.compact">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="4,0,0,0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+
+    <Style Selector="CheckBox.center">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style Selector="Button.compact">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <Style Selector="Button.quiet">
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="#94A3B8" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Width="28"
+                        Height="28"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="4">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      RecognizesAccessKey="True"
+                                      Foreground="{TemplateBinding Foreground}" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Button.quiet:pointerover">
+        <Setter Property="Background" Value="#FEE2E2" />
+        <Setter Property="Foreground" Value="#B91C1C" />
+    </Style>
+    <Style Selector="Button.quiet:pressed">
+        <Setter Property="Background" Value="#FECACA" />
+        <Setter Property="Foreground" Value="#991B1B" />
+    </Style>
+    <Style Selector="Button.quiet:disabled">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="Foreground" Value="#D0D5DD" />
+        <Setter Property="Opacity" Value="1" />
+    </Style>
+
+    <Style Selector="ScrollViewer.tx-scroll">
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="AllowAutoHide" Value="True" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="MinWidth" Value="8" />
+        <Setter Property="Margin" Value="0,4,2,4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="AllowAutoHide" Value="True" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical /template/ RepeatButton#PART_LineUpButton">
+        <Setter Property="IsVisible" Value="False" />
+        <Setter Property="Height" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical /template/ RepeatButton#PART_LineDownButton">
+        <Setter Property="IsVisible" Value="False" />
+        <Setter Property="Height" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Opacity" Value="0" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical /template/ Rectangle#TrackRect">
+        <Setter Property="Opacity" Value="0" />
+        <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical /template/ Thumb">
+        <Setter Property="Width" Value="4" />
+        <Setter Property="MinWidth" Value="4" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Background" Value="#C5CDD6" />
+        <Setter Property="RenderTransform" Value="none" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical /template/ Thumb /template/ Border">
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="Background" Value="#C5CDD6" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical:pointerover /template/ Thumb">
+        <Setter Property="Background" Value="#94A3B8" />
+    </Style>
+    <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical:pointerover /template/ Thumb /template/ Border">
+        <Setter Property="Background" Value="#94A3B8" />
+    </Style>
+
+    <Style Selector="ItemsControl.tx-list">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="ItemsControl.tx-list ContentPresenter">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="ComboBox.toolbar">
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="Padding" Value="10,4,8,4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+    <Style Selector="ComboBox.toolbar ComboBoxItem">
+        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="ListBox.frame-grid">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Visible" />
+    </Style>
+
+    <Style Selector="ListBox.frame-grid ListBoxItem">
+        <Setter Property="Padding" Value="10,4,8,4" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <Style Selector="ListBox.frame-grid ListBoxItem:nth-child(2n)">
+        <Setter Property="Background" Value="#F8FAFC" />
+    </Style>
+
+    <Style Selector="ListBox.frame-grid ListBoxItem:pointerover">
+        <Setter Property="Background" Value="#F0FDFA" />
+    </Style>
+
+    <Style Selector="ListBox.frame-grid ListBoxItem:selected">
+        <Setter Property="Background" Value="#CCFBF1" />
+    </Style>
+
+    <Style Selector="ListBox.frame-grid ListBoxItem:selected:pointerover">
+        <Setter Property="Background" Value="#99F6E4" />
+    </Style>
+
+    <Style Selector="GridSplitter.row">
+        <Setter Property="Background" Value="#E5EAF0" />
+        <Setter Property="MinHeight" Value="5" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="ResizeDirection" Value="Rows" />
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+    </Style>
+
+    <Style Selector="GridSplitter.row:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+    </Style>
+
+    <Style Selector="Border.tx-row">
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="10,4,12,4" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="ItemsControl.tx-list ContentPresenter:nth-child(2n) Border.tx-row">
+        <Setter Property="Background" Value="#F8FAFC" />
+    </Style>
+
+    <Style Selector="Border.tx-row:pointerover">
+        <Setter Property="Background" Value="#F0FDFA" />
+    </Style>
+
+    <Style Selector="ToggleButton.flag">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MinWidth" Value="42" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
+        <Setter Property="Foreground" Value="#94A3B8" />
+        <Setter Property="Background" Value="#F1F5F9" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Background="{TemplateBinding Background}"
+                        CornerRadius="3"
+                        Padding="{TemplateBinding Padding}">
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"
+                                      RecognizesAccessKey="True"
+                                      Foreground="{TemplateBinding Foreground}" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.flag:pointerover">
+        <Setter Property="Background" Value="#E2E8F0" />
+    </Style>
+    <Style Selector="ToggleButton.flag:disabled">
+        <Setter Property="Opacity" Value="0.35" />
+    </Style>
+    <Style Selector="ToggleButton.flag.ext:checked">
+        <Setter Property="Background" Value="#EEF2FF" />
+        <Setter Property="Foreground" Value="#3730A3" />
+    </Style>
+    <Style Selector="ToggleButton.flag.ext:checked:pointerover">
+        <Setter Property="Background" Value="#E0E7FF" />
+    </Style>
+    <Style Selector="ToggleButton.flag.rtr:checked">
+        <Setter Property="Background" Value="#FEF3C7" />
+        <Setter Property="Foreground" Value="#B45309" />
+    </Style>
+    <Style Selector="ToggleButton.flag.rtr:checked:pointerover">
+        <Setter Property="Background" Value="#FDE68A" />
+    </Style>
+    <Style Selector="ToggleButton.flag.fd:checked">
+        <Setter Property="Background" Value="#E0F2FE" />
+        <Setter Property="Foreground" Value="#0369A1" />
+    </Style>
+    <Style Selector="ToggleButton.flag.fd:checked:pointerover">
+        <Setter Property="Background" Value="#BAE6FD" />
+    </Style>
+    <Style Selector="ToggleButton.flag.brs:checked">
+        <Setter Property="Background" Value="#CCFBF1" />
+        <Setter Property="Foreground" Value="#0F766E" />
+    </Style>
+    <Style Selector="ToggleButton.flag.brs:checked:pointerover">
+        <Setter Property="Background" Value="#99F6E4" />
+    </Style>
+
+    <Style Selector="ToggleButton.switch">
+        <Setter Property="Width" Value="36" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="#CBD5E1" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border Width="36"
+                        Height="20"
+                        CornerRadius="10"
+                        Background="{TemplateBinding Background}">
+                    <Ellipse x:Name="Thumb"
+                             Width="16"
+                             Height="16"
+                             Margin="2,0"
+                             HorizontalAlignment="Left"
+                             VerticalAlignment="Center"
+                             Fill="White" />
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="ToggleButton.switch:checked">
+        <Setter Property="Background" Value="#0F766E" />
+    </Style>
+    <Style Selector="ToggleButton.switch:checked /template/ Ellipse#Thumb">
+        <Setter Property="HorizontalAlignment" Value="Right" />
+    </Style>
+    <Style Selector="ToggleButton.switch:pointerover">
+        <Setter Property="Opacity" Value="0.92" />
+    </Style>
+
+    <Style Selector="Expander.more">
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="#64748B" />
+    </Style>
+</Styles>

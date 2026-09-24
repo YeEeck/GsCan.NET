@@ -108,6 +108,23 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
+        public void RefreshDevices_keeps_the_same_list_instance_when_the_snapshot_is_unchanged()
+        {
+            var port = new FakeGsCanPort();
+            port.Devices.Add(new DeviceInfo(@"\\?\usb#a", 2));
+            var session = new ViewSession(port);
+            session.RefreshDevices();
+            session.SelectedDevice = session.DeviceList[0];
+            var first = session.DeviceList;
+
+            session.RefreshDevices();
+
+            Assert.Equal(2, port.ListCallCount);
+            Assert.Same(first, session.DeviceList);
+            Assert.Same(first[0], session.SelectedDevice);
+        }
+
+        [Fact]
         public void Open_sets_OpenedPath_and_creates_stopped_Channels()
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);

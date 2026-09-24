@@ -75,6 +75,8 @@ namespace GsCan.View.Session
 
         public bool BitRateSwitch { get; set; }
 
+        public int Length { get; set; }
+
         public string DataHex { get; set; } = string.Empty;
 
         public int PeriodMs { get; set; }

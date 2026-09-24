@@ -1,3 +1,4 @@
+using System.Threading;
 using GsCan;
 using GsCan.View.Session;
 using GsCan.View.Tests.Fakes;
@@ -183,6 +184,61 @@ namespace GsCan.View.Tests
             Assert.Equal(1, port.DisposeCallCount);
             Assert.Null(session.OpenedPath);
             Assert.Empty(session.Channels);
+        }
+
+        [Fact]
+        public void StopChannel_with_pumps_does_not_close_device_when_another_channel_read_is_cancelled()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port, runBackgroundPumps: true);
+            session.Open(info);
+            var opened = port.LastOpenedDevice!;
+            opened.SimulateDeviceWideReadCancel = true;
+            try
+            {
+                session.StartChannel(0);
+                session.StartChannel(1);
+
+                session.StopChannel(0);
+                Thread.Sleep(250);
+
+                Assert.Equal(@"\\?\usb#a", session.OpenedPath);
+                Assert.Equal(2, session.Channels.Count);
+                Assert.False(session.Channels[0].IsRunning);
+                Assert.True(session.Channels[1].IsRunning);
+                Assert.Equal(0, port.DisposeCallCount);
+                Assert.Null(session.LastError);
+            }
+            finally
+            {
+                session.Close();
+            }
+        }
+
+        [Fact]
+        public void StopChannel_then_StartChannel_with_pumps_does_not_close_the_device()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port, runBackgroundPumps: true);
+            session.Open(info);
+            try
+            {
+                session.StartChannel(0);
+                session.StopChannel(0);
+                session.StartChannel(0);
+                Thread.Sleep(250);
+
+                Assert.Equal(@"\\?\usb#a", session.OpenedPath);
+                Assert.True(session.Channels[0].IsRunning);
+                Assert.Equal(0, port.DisposeCallCount);
+                Assert.Null(session.LastError);
+            }
+            finally
+            {
+                session.Close();
+            }
         }
 
         [Fact]

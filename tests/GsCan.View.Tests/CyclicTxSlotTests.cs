@@ -156,8 +156,35 @@ namespace GsCan.View.Tests
             Assert.Equal(0x11u, opened.Sent[2].Frame.Id);
         }
 
+        [Fact]
+        public void Removing_a_cyclic_TxSlot_stops_it_and_keeps_the_other()
+        {
+            var (session, opened, clock) = OpenStarted();
+            session.StartChannel(1);
+            EnableCyclic(session, slotIndex: 0, channel: 0, id: 0x10);
+            EnableCyclic(session, slotIndex: 1, channel: 1, id: 0x11);
+
+            clock.Advance(TimeSpan.FromMilliseconds(10));
+            Assert.Equal(2, opened.Sent.Count);
+
+            session.RemoveTxSlot(session.TxSlots[0]);
+            Assert.Single(session.TxSlots);
+            Assert.Equal(0, session.TxSlots[0].Index);
+            Assert.True(session.TxSlots[0].Enabled);
+
+            clock.Advance(TimeSpan.FromMilliseconds(10));
+            Assert.Equal(3, opened.Sent.Count);
+            Assert.Equal(1, opened.Sent[2].Channel);
+            Assert.Equal(0x11u, opened.Sent[2].Frame.Id);
+        }
+
         private static void EnableCyclic(ViewSession session, int slotIndex, int channel, uint id)
         {
+            while (session.TxSlots.Count <= slotIndex)
+            {
+                session.AddTxSlot();
+            }
+
             var slot = session.TxSlots[slotIndex];
             slot.Channel = channel;
             slot.Id = id;

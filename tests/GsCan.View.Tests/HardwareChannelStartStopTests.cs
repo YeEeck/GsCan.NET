@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using GsCan;
 using GsCan.View.Session;
 using Xunit;
@@ -42,10 +43,26 @@ namespace GsCan.View.Tests
                     Assert.True(session.Channels[1].IsRunning);
 
                     session.StopChannel(1);
+                    Thread.Sleep(250);
+                    Assert.Equal(list[0].Path, session.OpenedPath);
                     Assert.False(session.Channels[1].IsRunning);
                     Assert.True(session.Channels[0].IsRunning);
                     Assert.Null(session.LastError);
+
+                    session.StartChannel(1);
+                    Thread.Sleep(250);
+                    Assert.Equal(list[0].Path, session.OpenedPath);
+                    Assert.True(session.Channels[0].IsRunning);
+                    Assert.True(session.Channels[1].IsRunning);
+                    Assert.Null(session.LastError);
                 }
+
+                session.StopChannel(0);
+                session.StartChannel(0);
+                Thread.Sleep(250);
+                Assert.Equal(list[0].Path, session.OpenedPath);
+                Assert.True(session.Channels[0].IsRunning);
+                Assert.Null(session.LastError);
 
                 session.StopChannel(0);
                 Assert.False(session.Channels[0].IsRunning);

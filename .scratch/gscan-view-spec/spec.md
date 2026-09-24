@@ -2,7 +2,7 @@
 
 Status: ready-for-agent
 
-术语以仓库根 `CONTEXT.md` 为准。库的语义（Echo、Overflow、Start/Stop、`TryRead`）不在本规格改写。决策索引：`docs/adr/0001`–`0008`。
+术语以仓库根 `CONTEXT.md` 为准。库的语义（Echo、Overflow、Start/Stop、`TryRead`）不在本规格改写。决策索引：`docs/adr/0001`–`0009`。
 
 ## Problem Statement
 
@@ -18,8 +18,8 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 2. As a GsCan View 用户, I want 窗口标题是「GsCan View」, so that 不会把它当成库或当成 FlintCAN 私有工具。
 3. As a GsCan View 用户, I want 界面是中文, so that 按钮和状态我能读懂。
 4. As a GsCan View 用户, I want Echo、Trace、Latest、Kind 这些词保持英文, so that 和库的术语表对得上，不会被译成「发送成功」。
-5. As a 主机用户, I want 顶栏列出当前 `Device.List` 的快照（Path 和 Channel 数）, so that 我能认出插着的那块适配器。
-6. As a 主机用户, I want 点刷新再 List 一次, so that 刚插上的设备能出现；我明白列表不会自己更新。
+5. As a 主机用户, I want 顶栏用友好名称列出当前 `Device.List` 的快照（gs_usb、VID:PID、实例、Channel 数；完整 Path 在提示里）, so that 我能认出插着的那块适配器，而不必读 WinUSB 路径。
+6. As a 主机用户, I want 启动窗口和点开顶部设备下拉时各 List 一次，刷新按钮仍可用, so that 刚插上的设备能出现；我明白列表仍不是热插拔事件。
 7. As a 主机用户, I want 一次只打开一块 Device, so that 不会同时占着多块适配器。
 8. As a FlintCAN-FD 用户, I want 打开之后看到两路 Channel 条, so that CAN1 和 CAN2 都在同一窗口里。
 9. As a 单路 gs_usb 用户, I want 打开之后只看到一路 Channel 条, so that 不会出现点不动的第二路。
@@ -54,10 +54,10 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 38. As a 接收用户, I want 暂停时后台仍 TryRead, so that 设备不会因为我看一行就 Overflow。
 39. As a 接收用户, I want 暂停期间新帧不进 Trace/Latest，状态栏计暂停丢弃, so that 我知道冻住时错过了多少。
 40. As a 接收用户, I want 清空只清窗口里的 Trace 和 Latest, so that 总线和 Channel 的 Start 状态不受影响。
-41. As a 接收用户, I want 只有已经贴底时才自动滚屏, so that 我往回翻时画面不会被拽走。
+41. As a 接收用户, I want Trace 始终跟着最新一行（滚动条钉在底部）, so that 新帧一到就能看见；要看清一行请暂停。
 42. As a 接收用户, I want Trace 大约 10 万行封顶、超出丢最旧, so that 满负载开一夜不会把内存吃光。
-43. As a 发送用户, I want 一张约 16 行的 TxSlot 表, so that 可以同时挂多路要发的帧。
-44. As a 发送用户, I want 每个 TxSlot 有 Channel、ID、Extended、Remote、FD、BRS、数据、周期毫秒、使能, so that 经典/FD、单次/周期都能配。
+43. As a 发送用户, I want 一张可添加/删除的 TxSlot 表（默认 1 行，最多约 16 行）, so that 可以同时挂多路要发的帧，又不必对着空行。
+44. As a 发送用户, I want 每个 TxSlot 有 Channel、ID、Extended、Remote、FD、BRS、DLC、数据、周期毫秒、使能, so that 经典/FD、单次/周期都能配，长度由 DLC 显式决定。
 45. As a 发送用户, I want 周期为 0 表示只发一次, so that 点一下和嘀嘀嘀是同一张表。
 46. As a 发送用户, I want TxSlot 上没有 ESI, so that 我不会以为自己在控制对端错误状态。
 47. As a 发送用户, I want 使能周期发送时按周期 `Send`, so that 实验室能持续刺激总线。
@@ -95,12 +95,12 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 - **Trace**：到达序、上限约 10 万行、超出丢最旧。相对时间按该 Channel 本次 Start 起算。清空只清窗口。
 - **Latest**：键 `(Channel, Kind, Id, Extended, Remote, IsFd)`；计数按键累加；BRS/ESI/Overflow/数据取最新帧。
 - **Display Filter**：Channel、Kind、标准/扩展、经典/FD、Remote、单个十六进制 ID 或闭区间。无掩码、无数据匹配、无表达式。过滤发生在进窗口之前，不进设备。
-- **TxSlot**：约 16 行。列：Channel、ID、Extended、Remote、FD、BRS、数据、周期毫秒（0 = 一次）、使能。无 ESI。该路 Stop 或 ListenOnly → 停该路周期发送且不得再 `Send`。
+- **TxSlot**：默认 1 行，可添加/删除，上限 16。列：Channel、ID、Extended、Remote、FD、BRS、DLC、数据、周期毫秒（0 = 一次）、使能。DLC 是 payload 字节数（经典 0–8；FD 另加 12/16/20/24/32/48/64），默认 8。无 ESI。该路 Stop 或 ListenOnly → 停该路周期发送且不得再 `Send`。从旧的 16 行空白表恢复时丢掉末尾空行。
 - **Echo 文案**：任何地方都不写「TX 成功 / 已上总线 / 发送成功」。状态栏 TX 计数来自 Echo 帧数，含义是「设备上结束的 Send」，不是总线确认。
 - **拔掉**：进行中的调用以 `GsCanException` 失败；关 Device；停周期发送；已有 Trace/Latest 保留；不合成帧；不自动重开。
 - **Log**：只把当前 Trace 写成 CSV（含 `TimestampMicroseconds` 原值、Channel、Kind、ID、标志、数据）。不能打开。Display Filter 不决定写出哪些行——写出的是窗口里那份 Trace 缓冲（暂停丢弃的本来就不在缓冲里）。
 - **配置记忆**：启动时恢复 Device Path、每路 ChannelOptions、Display Filter、TxSlot。不自动 Open、不自动 Start。
-- **骨架**：单窗口自上而下：Device 条；Channel 条（OneShot 在「更多」）；Display Filter 条；接收区（Trace | Latest、暂停/清空/贴底滚屏）；TxSlot 表；状态栏。不对接、没有第二窗口。
+- **骨架**：单窗口自上而下：Device 条（启动与打开下拉会 List）；Channel 条（OneShot 在「更多」）；Display Filter 条；接收区（Trace | Latest、暂停/清空；Trace 始终钉底）；TxSlot 表（含 DLC）；状态栏。不对接、没有第二窗口。
 - **错误 payload**：十六进制。不解码。
 - **库能力缺口不在窗口里假装有**：IDENTIFY、软件端接、硬件滤波、`Channel.State`、总线恢复，都不做控件。
 
@@ -109,7 +109,7 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 - **唯一测试缝**：GsCan View 会话面——窗口所绑定的那一层命令与状态（Device 生命周期、Channel Start/Stop、Trace、Latest、Display Filter、TxSlot、暂停/清空/上限、Log、配置记忆）。只测外部行为。
 - **不要**测 Avalonia 控件树、不要测像素、不要在 GsCan 库内部或 candle 上开第二道缝。库已有自己的规格和测试；本规格不重复 `Send`/`TryRead`/Echo FIFO 那些库条款，只测 View 怎么展现和指挥它们。
 - **无实机**：会话面必须能在测试里注入 `CanFrame` 序列、模拟 List/Open/Start/`GsCanException`、模拟时钟上的周期 `Send`。不要求本规格实现一个假 Device 去骗库；假的是 View 会话背后的端口，测试只对会话说话。
-- **好测试**：喂一组带 Kind 的帧，断言 Trace 顺序、Latest 键（Echo 与 Rx 分家、Error 不被盖）、Display Filter 显隐、暂停期间帧不进缓冲且丢弃计数增加、上限丢最旧、ListenOnly/Stop 停掉该路 TxSlot、Log CSV 含原始微秒、恢复的配置不会自己 Start。不断言控件名、样式、调度器类型。
+- **好测试**：喂一组带 Kind 的帧，断言 Trace 顺序、Latest 键（Echo 与 Rx 分家、Error 不被盖）、Display Filter 显隐、暂停期间帧不进缓冲且丢弃计数增加、上限丢最旧、ListenOnly/Stop 停掉该路 TxSlot、TxSlot 可加减且上限 16、Log CSV 含原始微秒、恢复的配置不会自己 Start。不断言控件名、样式、调度器类型。
 - **验收（必须，无设备则跳过，风格同现有 `GsCan.Tests`）**：实机 FlintCAN-FD 能从窗口 List/Open、两路独立 Start、Loopback 下看见 Echo 与 Rx、Stop 后周期发送停、拔线或关闭后状态栏报错且已有帧保留。
 - **Prior art**：`GsCan.Tests`（xUnit、无设备打印 SKIP）。View 的测试项目同一风格；硬件相关同样可跳过，不得在没插设备的机器上失败。
 
@@ -129,4 +129,4 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 ## Further Notes
 
 - 库规格：`.scratch/gscan-net-spec/spec.md`。View 不得削弱其中 Echo、Stop、ListenOnly、无热插拔事件等条款。
-- ADR：`docs/adr/0001` 不是分析仪；`0002` Avalonia + Win-x64 zip；`0003` 一块 Device 两路 Channel、Trace+Latest；`0004` CSV 只写；`0005` Latest 键含 Kind；`0006` 暂停不停泵；`0007` 工程身份 `GsCan.View`；`0008` 记住表单但不上总线。
+- ADR：`docs/adr/0001` 不是分析仪；`0002` Avalonia + Win-x64 zip；`0003` 一块 Device 两路 Channel、Trace+Latest；`0004` CSV 只写；`0005` Latest 键含 Kind；`0006` 暂停不停泵；`0007` 工程身份 `GsCan.View`；`0008` 记住表单但不上总线；`0009` TxSlot 是动态列表不是邮箱表。
