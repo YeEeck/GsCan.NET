@@ -322,7 +322,8 @@
                                                 <TextBlock Grid.Column="3"
                                                            Classes="mono"
                                                            FontWeight="SemiBold"
-                                                           Text="{Binding IdHex}" />
+                                                           Text="{Binding IdHex}"
+                                                           ToolTip.Tip="{Binding ErrorHint}" />
                                                 <StackPanel Grid.Column="4" Orientation="Horizontal">
                                                     <Border Classes="tag ext" IsVisible="{Binding Extended}">
                                                         <TextBlock Text="EXT" />
@@ -406,7 +407,8 @@
                                                 <TextBlock Grid.Column="4"
                                                            Classes="mono"
                                                            FontWeight="SemiBold"
-                                                           Text="{Binding IdHex}" />
+                                                           Text="{Binding IdHex}"
+                                                           ToolTip.Tip="{Binding ErrorHint}" />
                                                 <StackPanel Grid.Column="5" Orientation="Horizontal">
                                                     <Border Classes="tag ext" IsVisible="{Binding Extended}">
                                                         <TextBlock Text="EXT" />

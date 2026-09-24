@@ -21,6 +21,9 @@ namespace GsCan.View.Session
         private static readonly PropertyChangedEventArgs LengthArgs = new PropertyChangedEventArgs(nameof(Length));
         private static readonly PropertyChangedEventArgs DataArgs = new PropertyChangedEventArgs(nameof(DataHex));
         private static readonly PropertyChangedEventArgs TimestampArgs = new PropertyChangedEventArgs(nameof(TimestampMicroseconds));
+        private static readonly PropertyChangedEventArgs IdHexArgs = new PropertyChangedEventArgs(nameof(IdHex));
+        private static readonly PropertyChangedEventArgs ErrorClassArgs = new PropertyChangedEventArgs(nameof(ErrorClass));
+        private static readonly PropertyChangedEventArgs ErrorHintArgs = new PropertyChangedEventArgs(nameof(ErrorHint));
 
         private FrameRow _frame;
         private int _count;
@@ -38,7 +41,9 @@ namespace GsCan.View.Session
         public int Channel => _frame.Channel;
         public string Kind => _frame.Kind;
         public uint Id => _frame.Id;
-        public string IdHex => _frame.IdHex;
+        public string IdHex => _frame.IdDisplay;
+        public string ErrorClass => _frame.ErrorClass;
+        public string ErrorHint => _frame.ErrorHint;
         public bool Extended => _frame.Extended;
         public bool Remote => _frame.Remote;
         public bool IsFd => _frame.IsFd;
@@ -79,6 +84,9 @@ namespace GsCan.View.Session
             handler(this, LengthArgs);
             handler(this, DataArgs);
             handler(this, TimestampArgs);
+            handler(this, IdHexArgs);
+            handler(this, ErrorClassArgs);
+            handler(this, ErrorHintArgs);
         }
     }
 
@@ -165,8 +173,9 @@ namespace GsCan.View.Session
             private readonly bool _extended;
             private readonly bool _remote;
             private readonly bool _isFd;
+            private readonly string _errorClass;
 
-            private Key(int channel, string kind, uint id, bool extended, bool remote, bool isFd)
+            private Key(int channel, string kind, uint id, bool extended, bool remote, bool isFd, string errorClass)
             {
                 _channel = channel;
                 _kind = kind;
@@ -174,11 +183,17 @@ namespace GsCan.View.Session
                 _extended = extended;
                 _remote = remote;
                 _isFd = isFd;
+                _errorClass = errorClass;
             }
 
             public static Key From(FrameRow row)
             {
-                return new Key(row.Channel, row.Kind, row.Id, row.Extended, row.Remote, row.IsFd);
+                if (string.Equals(row.Kind, "Error", StringComparison.Ordinal))
+                {
+                    return new Key(row.Channel, row.Kind, 0, false, false, false, row.ErrorClass ?? string.Empty);
+                }
+
+                return new Key(row.Channel, row.Kind, row.Id, row.Extended, row.Remote, row.IsFd, string.Empty);
             }
 
             public bool Equals(Key other)
@@ -188,7 +203,8 @@ namespace GsCan.View.Session
                     && _extended == other._extended
                     && _remote == other._remote
                     && _isFd == other._isFd
-                    && string.Equals(_kind, other._kind, StringComparison.Ordinal);
+                    && string.Equals(_kind, other._kind, StringComparison.Ordinal)
+                    && string.Equals(_errorClass, other._errorClass, StringComparison.Ordinal);
             }
 
             public override bool Equals(object? obj)
@@ -198,7 +214,7 @@ namespace GsCan.View.Session
 
             public override int GetHashCode()
             {
-                return HashCode.Combine(_channel, _kind, _id, _extended, _remote, _isFd);
+                return HashCode.Combine(_channel, _kind, _id, _extended, _remote, _isFd, _errorClass);
             }
         }
     }

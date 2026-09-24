@@ -17,7 +17,9 @@ namespace GsCan.View.Session
             bool overflow,
             int length,
             string dataHex,
-            uint timestampMicroseconds)
+            uint timestampMicroseconds,
+            string errorClass = "",
+            string errorHint = "")
         {
             RelativeMilliseconds = relativeMilliseconds;
             Channel = channel;
@@ -32,6 +34,8 @@ namespace GsCan.View.Session
             Length = length;
             DataHex = dataHex;
             TimestampMicroseconds = timestampMicroseconds;
+            ErrorClass = errorClass ?? string.Empty;
+            ErrorHint = errorHint ?? string.Empty;
         }
 
         public double RelativeMilliseconds { get; }
@@ -42,6 +46,11 @@ namespace GsCan.View.Session
         public string IdHex => Extended
             ? Id.ToString("X8", CultureInfo.InvariantCulture)
             : Id.ToString("X3", CultureInfo.InvariantCulture);
+
+        public string IdDisplay =>
+            string.Equals(Kind, "Error", System.StringComparison.Ordinal) && !string.IsNullOrEmpty(ErrorClass)
+                ? ErrorClass
+                : IdHex;
         public bool Extended { get; }
         public bool Remote { get; }
         public bool IsFd { get; }
@@ -51,5 +60,7 @@ namespace GsCan.View.Session
         public int Length { get; }
         public string DataHex { get; }
         public uint TimestampMicroseconds { get; }
+        public string ErrorClass { get; }
+        public string ErrorHint { get; }
     }
 }

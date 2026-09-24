@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Globalization;
 
 namespace GsCan.View.Session
 {
@@ -15,11 +14,8 @@ namespace GsCan.View.Session
         public int Channel => _row?.Channel ?? 0;
         public string Kind => _row?.Kind ?? "Rx";
         public uint Id => _row?.Id ?? 0;
-        public string IdHex => _row == null
-            ? string.Empty
-            : _row.Extended
-                ? _row.Id.ToString("X8", CultureInfo.InvariantCulture)
-                : _row.Id.ToString("X3", CultureInfo.InvariantCulture);
+        public string IdHex => _row?.IdDisplay ?? string.Empty;
+        public string ErrorHint => _row?.ErrorHint ?? string.Empty;
         public bool Extended => _row is { Extended: true };
         public bool Remote => _row is { Remote: true };
         public bool IsFd => _row is { IsFd: true };

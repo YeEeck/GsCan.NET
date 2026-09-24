@@ -57,8 +57,12 @@ _Avoid_: candleLight（当实际指这块板时）
 _Avoid_: Log（那是存盘文件）, Receive, 报文列表（当实际指 Latest 时）
 
 **Latest**:
-按键覆盖的那种看法。键是 `(Channel, Kind, Id, Extended, Remote, IsFd)`；每个键只留最新一帧并计数。BRS、ESI、Overflow、数据是该行上的最新值，不是键。
+按键覆盖的那种看法。Rx / Echo 的键是 `(Channel, Kind, Id, Extended, Remote, IsFd)`；Kind=Error 的键是 `(Channel, Kind, ErrorClass)`。每个键只留最新一帧并计数。BRS、ESI、Overflow、数据、Error 提示是该行上的最新值，不是键。
 _Avoid_: Sniffer, Overwrite, Receive, Trace（当实际指按 ID 覆盖时）
+
+**ErrorClass**:
+Kind=Error 的 CanFrame 按 SocketCAN 类位归出的一个主因。窗口 ID 列显示这个英文词；不是物理故障原因，也不是新的 CanFrameKind。
+_Avoid_: 错误分析, 故障码, ErrorKind, 原因（当实际指这个分类时）
 
 **Display Filter**:
 只决定窗口里看见哪些帧。不是硬件验收滤波；库没有那种能力。

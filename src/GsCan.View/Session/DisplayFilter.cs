@@ -137,7 +137,7 @@ namespace GsCan.View.Session
                         return false;
                     }
 
-                    break;
+                    return true;
                 default:
                     if (!ShowRx)
                     {

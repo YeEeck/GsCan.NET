@@ -692,37 +692,47 @@ namespace GsCan.View.Session
             }
         }
 
-        private void HaltCyclicOnError(int channelIndex)
+        private void ObserveError(int channelIndex, ErrorClass.Classification error)
         {
-            bool any = false;
-            foreach (var slot in TxSlots)
+            bool halt = error.HaltsCyclic && ChannelHasEnabledCyclic(channelIndex);
+
+            void Apply()
             {
-                if (slot.Channel == channelIndex && slot.Enabled)
+                if (halt)
                 {
-                    any = true;
-                    break;
+                    DisableCyclicOnChannel(channelIndex);
                 }
-            }
 
-            if (!any)
-            {
-                return;
-            }
+                string message = "CH" + channelIndex + " " + error.Name + "：" + error.Hint;
+                if (halt)
+                {
+                    message += " 已停止该路周期发送。";
+                }
 
-            void Halt()
-            {
-                DisableCyclicOnChannel(channelIndex);
-                LastError = "CH" + channelIndex + " 出现错误帧，已停止该路周期发送。";
+                LastError = message;
             }
 
             if (ShouldMarshalToUi)
             {
-                _ui!.Post(_ => Halt(), null);
+                _ui!.Post(_ => Apply(), null);
             }
             else
             {
-                Halt();
+                Apply();
             }
+        }
+
+        private bool ChannelHasEnabledCyclic(int channelIndex)
+        {
+            foreach (var slot in TxSlots)
+            {
+                if (slot.Channel == channelIndex && slot.Enabled)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void DisableCyclicOnChannel(int channelIndex)
@@ -911,9 +921,12 @@ namespace GsCan.View.Session
             }
 
             Status.Observe(frame);
+            ErrorClass.Classification? error = null;
             if (frame.Kind == CanFrameKind.Error)
             {
-                HaltCyclicOnError(channelIndex);
+                var classified = ErrorClass.Describe(frame);
+                ObserveError(channelIndex, classified);
+                error = classified;
             }
 
             if (!ShouldMarshalToUi)
@@ -932,7 +945,7 @@ namespace GsCan.View.Session
                 return;
             }
 
-            PublishRow(ToRow(channelIndex, frame));
+            PublishRow(ToRow(channelIndex, frame, error));
         }
 
         private bool ShouldMarshalToUi => _marshalToUi;
@@ -1090,7 +1103,7 @@ namespace GsCan.View.Session
             }
         }
 
-        private FrameRow ToRow(int channelIndex, CanFrame frame)
+        private FrameRow ToRow(int channelIndex, CanFrame frame, ErrorClass.Classification? error)
         {
             uint origin;
             lock (_timeOriginByChannel)
@@ -1099,6 +1112,9 @@ namespace GsCan.View.Session
             }
 
             var data = frame.Data ?? Array.Empty<byte>();
+            string errorClass = error?.Name ?? string.Empty;
+            string errorHint = error?.Hint ?? string.Empty;
+
             return new FrameRow(
                 relativeMilliseconds: (frame.TimestampMicroseconds - origin) / 1000.0,
                 channel: channelIndex,
@@ -1112,7 +1128,9 @@ namespace GsCan.View.Session
                 overflow: frame.Overflow,
                 length: data.Length,
                 dataHex: ToHex(data),
-                timestampMicroseconds: frame.TimestampMicroseconds);
+                timestampMicroseconds: frame.TimestampMicroseconds,
+                errorClass: errorClass,
+                errorHint: errorHint);
         }
 
         private static string KindText(CanFrameKind kind)
