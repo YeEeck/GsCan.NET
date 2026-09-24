@@ -7,19 +7,78 @@ namespace GsCan.View.Tests.Fakes
 {
     internal sealed class FakeGsCanPort : IGsCanPort
     {
+        public List<DeviceInfo> Devices { get; } = new List<DeviceInfo>();
+        public Exception? OpenException { get; set; }
+
         public int ListCallCount { get; private set; }
         public int OpenCallCount { get; private set; }
+        public int DisposeCallCount { get; private set; }
+        public FakeOpenedDevice? LastOpenedDevice { get; private set; }
 
         public IReadOnlyList<DeviceInfo> List()
         {
             ListCallCount++;
-            return Array.Empty<DeviceInfo>();
+            return Devices.ToArray();
         }
 
         public IOpenedDevice Open(DeviceInfo info)
         {
             OpenCallCount++;
-            throw new InvalidOperationException("Fake port must not open a Device in this ticket.");
+            if (OpenException != null)
+            {
+                throw OpenException;
+            }
+
+            var device = new FakeOpenedDevice(info.Path, info.ChannelCount, this);
+            LastOpenedDevice = device;
+            return device;
+        }
+
+        internal void RecordDispose()
+        {
+            DisposeCallCount++;
+        }
+    }
+
+    internal sealed class FakeOpenedDevice : IOpenedDevice
+    {
+        private readonly FakeGsCanPort _port;
+
+        public FakeOpenedDevice(string path, int channelCount, FakeGsCanPort port)
+        {
+            Path = path;
+            ChannelCount = channelCount;
+            _port = port;
+        }
+
+        public int ChannelCount { get; }
+        public string Path { get; }
+        public int StartCallCount { get; private set; }
+
+        public void Start(int channelIndex, ChannelOptions options)
+        {
+            StartCallCount++;
+            throw new InvalidOperationException("Ticket 02 must not Start a Channel.");
+        }
+
+        public void Stop(int channelIndex)
+        {
+        }
+
+        public void Send(int channelIndex, CanFrame frame)
+        {
+            throw new InvalidOperationException("Ticket 02 must not Send.");
+        }
+
+        public bool TryRead(int channelIndex, int timeoutMilliseconds, out CanFrame frame)
+        {
+            frame = default;
+            throw new InvalidOperationException("Ticket 02 must not TryRead.");
+        }
+
+        public void Dispose()
+        {
+            _port.RecordDispose();
         }
     }
 }

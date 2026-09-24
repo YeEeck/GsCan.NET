@@ -7,7 +7,7 @@ namespace GsCan.View
     public partial class MainWindow : Window
     {
         public MainWindow()
-            : this(new ViewSession(new NullGsCanPort()))
+            : this(new ViewSession(new GsCanPort()))
         {
         }
 
@@ -15,6 +15,7 @@ namespace GsCan.View
         {
             InitializeComponent();
             DataContext = session ?? throw new ArgumentNullException(nameof(session));
+            Closed += (_, _) => session.Close();
         }
     }
 }
