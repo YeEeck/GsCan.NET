@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using Xunit;
 
 namespace GsCan.Tests
@@ -100,6 +102,58 @@ namespace GsCan.Tests
         }
 
         [Fact]
+        public void Stop_on_one_channel_does_not_throw_on_the_other_channels_blocked_TryRead()
+        {
+            if (!TryOpenDualChannel(out var device))
+            {
+                Console.WriteLine("SKIP concurrent Stop isolation: no dual-channel gs_usb device present.");
+                return;
+            }
+
+            using (device!)
+            {
+                var ch0 = device.Channels[0];
+                var ch1 = device.Channels[1];
+                ch0.Start(new ChannelOptions { Bitrate = 500000, Loopback = true });
+                ch1.Start(new ChannelOptions { Bitrate = 250000, Loopback = true });
+                try
+                {
+                    Exception? readEx = null;
+                    var readReturned = false;
+                    var readerDone = new ManualResetEventSlim(false);
+                    var reader = new Thread(() =>
+                    {
+                        try
+                        {
+                            readReturned = ch0.TryRead(out _, 400);
+                        }
+                        catch (Exception ex)
+                        {
+                            readEx = ex;
+                        }
+                        finally
+                        {
+                            readerDone.Set();
+                        }
+                    });
+                    reader.IsBackground = true;
+                    reader.Start();
+                    Thread.Sleep(80);
+                    ch1.Stop();
+
+                    Assert.True(readerDone.Wait(2000), "ch0 TryRead did not complete after ch1 Stop");
+                    Assert.Null(readEx);
+                    Assert.False(readReturned);
+                }
+                finally
+                {
+                    ch0.Stop();
+                    ch1.Stop();
+                }
+            }
+        }
+
+        [Fact]
         public void Send_on_ch0_does_not_appear_on_ch1_TryRead_but_remains_on_ch0()
         {
             if (!TryOpenDualChannel(out var device))
@@ -170,6 +224,150 @@ namespace GsCan.Tests
                     ch1.Stop();
                 }
             }
+        }
+
+        [Fact]
+        public void Dual_pump_rx_does_not_lag_after_ch0_send_stops()
+        {
+            if (!TryOpenDualChannel(out var device))
+            {
+                Console.WriteLine("SKIP dual-pump RX lag: no dual-channel gs_usb device present.");
+                return;
+            }
+
+            using (device!)
+            {
+                var ch0 = device.Channels[0];
+                var ch1 = device.Channels[1];
+                ch0.Start(new ChannelOptions { Bitrate = 500000 });
+                ch1.Start(new ChannelOptions { Bitrate = 500000 });
+                try
+                {
+                    var cts = new CancellationTokenSource();
+                    int echo = 0;
+                    int rx = 0;
+                    int overflow = 0;
+                    var pump0 = StartPump(ch0, cts.Token, frame =>
+                    {
+                        if (frame.Overflow)
+                        {
+                            Interlocked.Increment(ref overflow);
+                        }
+
+                        if (frame.Kind == CanFrameKind.Echo)
+                        {
+                            Interlocked.Increment(ref echo);
+                        }
+                    });
+                    var pump1 = StartPump(ch1, cts.Token, frame =>
+                    {
+                        if (frame.Overflow)
+                        {
+                            Interlocked.Increment(ref overflow);
+                        }
+
+                        if (frame.Kind == CanFrameKind.Rx)
+                        {
+                            Interlocked.Increment(ref rx);
+                        }
+                    });
+
+                    ch0.Send(CanFrame.Classic(0x100, new byte[] { 0x01 }));
+                    var sawCross = WaitFor(() => Volatile.Read(ref rx) >= 1, 400);
+                    if (!sawCross)
+                    {
+                        cts.Cancel();
+                        pump0.Join(1000);
+                        pump1.Join(1000);
+                        Console.WriteLine("SKIP dual-pump RX lag: ch0 is not wired to ch1.");
+                        return;
+                    }
+
+                    const int count = 80;
+                    for (int i = 0; i < count; i++)
+                    {
+                        ch0.Send(CanFrame.Classic(0x100, new byte[] { (byte)i }));
+                        Thread.Sleep(10);
+                    }
+
+                    Assert.True(
+                        WaitFor(() => Volatile.Read(ref echo) >= count, 1000),
+                        "Echo did not catch up after send, echo=" + Volatile.Read(ref echo));
+
+                    int rxAtStop = Volatile.Read(ref rx);
+                    var drain = Stopwatch.StartNew();
+                    bool rxCaughtUp = WaitFor(() => Volatile.Read(ref rx) >= count, 500);
+                    drain.Stop();
+
+                    cts.Cancel();
+                    pump0.Join(1000);
+                    pump1.Join(1000);
+
+                    Assert.True(rxCaughtUp, "RX did not catch up after TX stop, rx=" + Volatile.Read(ref rx)
+                        + " echo=" + Volatile.Read(ref echo)
+                        + " overflow=" + Volatile.Read(ref overflow));
+                    Assert.True(
+                        drain.ElapsedMilliseconds < 200,
+                        "RX trickled after TX stop: rxAtStop=" + rxAtStop
+                            + " rx=" + Volatile.Read(ref rx)
+                            + " drainMs=" + drain.ElapsedMilliseconds);
+                    Assert.Equal(0, Volatile.Read(ref overflow));
+                }
+                finally
+                {
+                    ch0.Stop();
+                    ch1.Stop();
+                }
+            }
+        }
+
+        private static Thread StartPump(Channel channel, CancellationToken token, Action<CanFrame> onFrame)
+        {
+            var thread = new Thread(() =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        if (!channel.TryRead(out var frame, 50))
+                        {
+                            continue;
+                        }
+
+                        onFrame(frame);
+                        while (!token.IsCancellationRequested && channel.TryRead(out frame, 0))
+                        {
+                            onFrame(frame);
+                        }
+                    }
+                    catch (GsCanException)
+                    {
+                        if (token.IsCancellationRequested)
+                        {
+                            break;
+                        }
+                    }
+                }
+            });
+            thread.IsBackground = true;
+            thread.Start();
+            return thread;
+        }
+
+        private static bool WaitFor(Func<bool> condition, int timeoutMs)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (condition())
+                {
+                    return true;
+                }
+
+                Thread.Sleep(5);
+            }
+
+            return condition();
         }
 
         private static List<CanFrame> Drain(Channel ch, int expectedMin, int timeoutMs)

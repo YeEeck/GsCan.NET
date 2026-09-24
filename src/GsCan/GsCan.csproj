@@ -34,6 +34,10 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="GsCan.Tests" />
+  </ItemGroup>
+
   <Target Name="CopyCandleApiNative" AfterTargets="Build">
     <PropertyGroup>
       <_GsCanNativeArch Condition="'$(PlatformTarget)' == 'x86' Or '$(Platform)' == 'x86'">win-x86</_GsCanNativeArch>

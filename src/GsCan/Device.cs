@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 using GsCan.Native;
 
@@ -8,26 +7,20 @@ namespace GsCan
 {
     public sealed class Device : IDisposable
     {
-        private const int NativeWaitSliceMs = 50;
-
         private IntPtr _handle;
         private bool _disposed;
         private readonly ReaderWriterLockSlim _lifecycleLock = new ReaderWriterLockSlim();
-        private readonly object _readLock = new object();
-        private readonly Queue<CanFrame>[] _channelQueues;
+        private readonly DeviceReadMux _mux;
         private readonly bool[] _channelStarted;
-        private int _readCancelEpoch;
+        private readonly int[] _readCancelEpoch;
 
         private Device(IntPtr handle, Channel[] channels)
         {
             _handle = handle;
             Channels = channels;
-            _channelQueues = new Queue<CanFrame>[channels.Length];
+            _mux = new DeviceReadMux(channels.Length);
             _channelStarted = new bool[channels.Length];
-            for (int i = 0; i < channels.Length; i++)
-            {
-                _channelQueues[i] = new Queue<CanFrame>();
-            }
+            _readCancelEpoch = new int[channels.Length];
         }
 
         public IReadOnlyList<Channel> Channels { get; }
@@ -84,11 +77,8 @@ namespace GsCan
         internal void MarkChannelStopped(int channelIndex)
         {
             _channelStarted[channelIndex] = false;
-            Interlocked.Increment(ref _readCancelEpoch);
-            lock (_readLock)
-            {
-                _channelQueues[channelIndex].Clear();
-            }
+            Interlocked.Increment(ref _readCancelEpoch[channelIndex]);
+            _mux.Clear(channelIndex);
         }
 
         internal bool IsChannelStarted(int channelIndex)
@@ -99,123 +89,65 @@ namespace GsCan
         /// <summary>
         /// Reads the next frame for <paramref name="channelIndex"/>, demuxing
         /// device-wide USB IN into per-channel FIFO queues.
+        /// Queue dequeue does not wait on the USB lock, so one channel blocked in a
+        /// native timeout cannot starve already-queued frames on another channel.
         /// Native waits are sliced so Stop/Dispose can take the lifecycle write lock
         /// without deadlocking against a blocked TryRead.
         /// </summary>
         internal bool TryReadForChannel(int channelIndex, int timeoutMilliseconds, out CanFrame frame)
         {
-            if (channelIndex < 0 || channelIndex >= _channelQueues.Length)
+            if (channelIndex < 0 || channelIndex >= _mux.ChannelCount)
             {
                 throw new GsCanException("Channel index out of range.");
             }
 
-            if (timeoutMilliseconds < 0)
+            int epoch = Volatile.Read(ref _readCancelEpoch[channelIndex]);
+            bool got = _mux.TryRead(
+                channelIndex,
+                timeoutMilliseconds,
+                ReadNativeFrame,
+                IsChannelStarted,
+                () => !IsChannelStarted(channelIndex)
+                    || Volatile.Read(ref _readCancelEpoch[channelIndex]) != epoch
+                    || _disposed,
+                EnterOperation,
+                ExitOperation,
+                out frame);
+
+            if (got)
             {
-                timeoutMilliseconds = 0;
+                return true;
             }
 
-            int epoch = Volatile.Read(ref _readCancelEpoch);
-            var sw = Stopwatch.StartNew();
-
-            while (true)
+            ThrowIfDisposed();
+            if (!IsChannelStarted(channelIndex)
+                || Volatile.Read(ref _readCancelEpoch[channelIndex]) != epoch)
             {
-                ThrowIfDisposed();
-                if (!IsChannelStarted(channelIndex)
-                    || Volatile.Read(ref _readCancelEpoch) != epoch)
-                {
-                    throw new GsCanException("Channel is not started.");
-                }
+                throw new GsCanException("Channel is not started.");
+            }
 
-                EnterOperation();
-                try
-                {
-                    ThrowIfDisposed();
-                    if (!IsChannelStarted(channelIndex))
-                    {
-                        throw new GsCanException("Channel is not started.");
-                    }
+            return false;
+        }
 
-                    lock (_readLock)
-                    {
-                        if (_channelQueues[channelIndex].Count > 0)
-                        {
-                            frame = _channelQueues[channelIndex].Dequeue();
-                            return true;
-                        }
-
-                        int remaining;
-                        if (timeoutMilliseconds == 0 && sw.ElapsedMilliseconds == 0)
-                        {
-                            remaining = 0;
-                        }
-                        else
-                        {
-                            long left = timeoutMilliseconds - sw.ElapsedMilliseconds;
-                            if (left <= 0)
-                            {
-                                frame = default;
-                                return false;
-                            }
-
-                            remaining = left > int.MaxValue ? int.MaxValue : (int)left;
-                        }
-
-                        int slice = remaining;
-                        if (slice > NativeWaitSliceMs)
-                        {
-                            slice = NativeWaitSliceMs;
-                        }
-
-                        CandleFdFrame native;
-                        if (!NativeMethods.candle_fd_frame_read(_handle, out native, (uint)slice))
-                        {
-                            int err = NativeMethods.candle_dev_last_error(_handle);
-                            if (err == NativeMethods.CANDLE_ERR_READ_TIMEOUT)
-                            {
-                                // Fall through to cancel/timeout checks outside the locks.
-                            }
-                            else
-                            {
-                                throw new GsCanException("Failed to read CAN frame (native error " + err + ").");
-                            }
-                        }
-                        else
-                        {
-                            CanFrame converted = ConvertNativeFdFrame(ref native);
-                            int frameChannel = native.channel;
-                            if (frameChannel == channelIndex)
-                            {
-                                frame = converted;
-                                return true;
-                            }
-
-                            if (frameChannel >= 0
-                                && frameChannel < _channelQueues.Length
-                                && _channelStarted[frameChannel])
-                            {
-                                _channelQueues[frameChannel].Enqueue(converted);
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    ExitOperation();
-                }
-
-                if (!IsChannelStarted(channelIndex)
-                    || Volatile.Read(ref _readCancelEpoch) != epoch
-                    || _disposed)
-                {
-                    throw new GsCanException("Channel is not started.");
-                }
-
-                if (timeoutMilliseconds == 0 || sw.ElapsedMilliseconds >= timeoutMilliseconds)
+        private bool ReadNativeFrame(int timeoutMilliseconds, out CanFrame frame, out int channel)
+        {
+            CandleFdFrame native;
+            if (!NativeMethods.candle_fd_frame_read(_handle, out native, (uint)timeoutMilliseconds))
+            {
+                int err = NativeMethods.candle_dev_last_error(_handle);
+                if (err == NativeMethods.CANDLE_ERR_READ_TIMEOUT)
                 {
                     frame = default;
+                    channel = -1;
                     return false;
                 }
+
+                throw new GsCanException("Failed to read CAN frame (native error " + err + ").");
             }
+
+            frame = ConvertNativeFdFrame(ref native);
+            channel = native.channel;
+            return true;
         }
 
         internal static CanFrame ConvertNativeFdFrame(ref CandleFdFrame native)
@@ -438,19 +370,13 @@ namespace GsCan
                 }
 
                 _disposed = true;
-                Interlocked.Increment(ref _readCancelEpoch);
                 for (int i = 0; i < _channelStarted.Length; i++)
                 {
                     _channelStarted[i] = false;
+                    Interlocked.Increment(ref _readCancelEpoch[i]);
                 }
 
-                lock (_readLock)
-                {
-                    for (int i = 0; i < _channelQueues.Length; i++)
-                    {
-                        _channelQueues[i].Clear();
-                    }
-                }
+                _mux.ClearAll();
 
                 if (_handle != IntPtr.Zero)
                 {
