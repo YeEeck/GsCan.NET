@@ -51,6 +51,7 @@ namespace GsCan.View.Session
             }
 
             TxSlots = slots;
+            DisplayFilter = new DisplayFilter();
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -123,6 +124,8 @@ namespace GsCan.View.Session
         }
 
         public ObservableCollection<FrameRow> Trace { get; }
+
+        public DisplayFilter DisplayFilter { get; }
 
         public IReadOnlyList<TxSlot> TxSlots { get; }
 
@@ -437,6 +440,11 @@ namespace GsCan.View.Session
             if (_paused)
             {
                 PublishDrop();
+                return;
+            }
+
+            if (!DisplayFilter.Matches(channelIndex, frame))
+            {
                 return;
             }
 
