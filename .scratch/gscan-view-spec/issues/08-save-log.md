@@ -8,7 +8,11 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 能把当前 Trace 存为 CSV，含原始微秒时间戳
-- [ ] 没有「打开 Log」入口
-- [ ] 不是 ASC / BLF / trc
-- [ ] 会话面测试：注入若干帧再导出，文件内容可断言，不要求实机
+- [x] 能把当前 Trace 存为 CSV，含原始微秒时间戳
+- [x] 没有「打开 Log」入口
+- [x] 不是 ASC / BLF / trc
+- [x] 会话面测试：注入若干帧再导出，文件内容可断言，不要求实机
+
+## Comments
+
+- Implemented on `feat/gscan-view-08-save-log` (`e3b27a0`), merged to `feat/gscan-view-v1`. SaveLog writes session.Trace as-is (pause-dropped already absent). No Open Log.
