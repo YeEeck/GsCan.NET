@@ -8,8 +8,12 @@ Parent: [GsCan View v1 规格](../spec.md)
 
 **Status:** ready-for-agent
 
-- [ ] 可切换 Trace | Latest，不是两个窗口
-- [ ] 键含 Kind：Echo 与 Rx 不会互相覆盖
-- [ ] Error 与同 ID 的 Rx 是不同行
-- [ ] 同一键再次到达时计数增加，数据与 BRS / ESI / Overflow 取最新
-- [ ] 会话面注入帧即可验证键与计数，不要求实机
+- [x] 可切换 Trace | Latest，不是两个窗口
+- [x] 键含 Kind：Echo 与 Rx 不会互相覆盖
+- [x] Error 与同 ID 的 Rx 是不同行
+- [x] 同一键再次到达时计数增加，数据与 BRS / ESI / Overflow 取最新
+- [x] 会话面注入帧即可验证键与计数，不要求实机
+
+## Comments
+
+- Implemented on `feat/gscan-view-05-latest` (`230792c`), merged to `feat/gscan-view-v1`. Key includes Kind. Pause does not update Latest.
