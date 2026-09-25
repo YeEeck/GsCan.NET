@@ -515,6 +515,9 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     </Style>
+    <Style Selector="ComboBox.toolbar /template/ Border#PopupBorder">
+        <Setter Property="MinWidth" Value="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" />
+    </Style>
 
     <Style Selector="ListBox.frame-grid">
         <Setter Property="Background" Value="Transparent" />

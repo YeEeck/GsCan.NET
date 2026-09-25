@@ -121,8 +121,11 @@ namespace GsCan.View.Session
             {
                 _deviceList = value;
                 Raise(nameof(DeviceList));
+                Raise(nameof(DeviceListIsEmpty));
             }
         }
+
+        public bool DeviceListIsEmpty => DeviceList.Count == 0;
 
         public IReadOnlyList<ChannelState> Channels
         {

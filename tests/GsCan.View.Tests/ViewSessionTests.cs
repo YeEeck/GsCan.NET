@@ -58,6 +58,7 @@ namespace GsCan.View.Tests
         {
             var session = new ViewSession(new FakeGsCanPort());
             Assert.Empty(session.DeviceList);
+            Assert.True(session.DeviceListIsEmpty);
         }
 
         [Fact]
@@ -73,6 +74,7 @@ namespace GsCan.View.Tests
             Assert.Single(session.DeviceList);
             Assert.Equal(@"\\?\usb#vid_1d50&pid_606f#1", session.DeviceList[0].Path);
             Assert.Equal(2, session.DeviceList[0].ChannelCount);
+            Assert.False(session.DeviceListIsEmpty);
         }
 
         [Fact]
@@ -105,6 +107,23 @@ namespace GsCan.View.Tests
             session.RefreshDevices();
 
             Assert.Empty(session.DeviceList);
+            Assert.True(session.DeviceListIsEmpty);
+        }
+
+        [Fact]
+        public void RefreshDevices_from_a_list_to_no_devices_sets_DeviceListIsEmpty()
+        {
+            var port = new FakeGsCanPort();
+            port.Devices.Add(new DeviceInfo(@"\\?\usb#a", 2));
+            var session = new ViewSession(port);
+            session.RefreshDevices();
+            Assert.False(session.DeviceListIsEmpty);
+
+            port.Devices.Clear();
+            session.RefreshDevices();
+
+            Assert.Empty(session.DeviceList);
+            Assert.True(session.DeviceListIsEmpty);
         }
 
         [Fact]

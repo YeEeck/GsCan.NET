@@ -2,7 +2,12 @@ using System;
 using System.Collections.Specialized;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using GsCan.View.Session;
@@ -11,6 +16,9 @@ namespace GsCan.View
 {
     public partial class MainWindow : Window
     {
+        private const string DeviceDropDownHostName = "DeviceDropDownHost";
+        private const string DeviceEmptyHintText = "未发现 gs_usb 设备。插入设备后点刷新。";
+
         private readonly ViewSession _session;
         private bool _latestStickToBottom = true;
         private bool _tracePinPosted;
@@ -35,6 +43,78 @@ namespace GsCan.View
         private void OnDeviceDropDownOpened(object? sender, EventArgs e)
         {
             _session.RefreshDevices();
+            if (sender is not ComboBox combo)
+            {
+                return;
+            }
+
+            if (!TryInstallDeviceEmptyHint(combo))
+            {
+                Dispatcher.UIThread.Post(() => TryInstallDeviceEmptyHint(combo), DispatcherPriority.Loaded);
+            }
+        }
+
+        private bool TryInstallDeviceEmptyHint(ComboBox combo)
+        {
+            combo.ApplyTemplate();
+            var popup = FindTemplatePart<Popup>(combo, "PART_Popup");
+            if (popup?.Child is not Border border)
+            {
+                return false;
+            }
+
+            border.MinWidth = combo.Bounds.Width;
+            if (border.Child is Grid existing && existing.Name == DeviceDropDownHostName)
+            {
+                return true;
+            }
+
+            var original = border.Child;
+            var host = new Grid { Name = DeviceDropDownHostName };
+            if (original != null)
+            {
+                border.Child = null;
+                host.Children.Add(original);
+            }
+
+            var hint = new TextBlock
+            {
+                Text = DeviceEmptyHintText,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(12, 10),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Top,
+                IsHitTestVisible = false,
+                IsVisible = _session.DeviceListIsEmpty
+            };
+            hint.Classes.Add("hint");
+            hint.Bind(Visual.IsVisibleProperty, new Binding(nameof(ViewSession.DeviceListIsEmpty))
+            {
+                Source = _session
+            });
+            host.Children.Add(hint);
+            border.Child = host;
+            return true;
+        }
+
+        private static T? FindTemplatePart<T>(TemplatedControl control, string name)
+            where T : Control
+        {
+            var named = control.FindControl<T>(name);
+            if (named != null)
+            {
+                return named;
+            }
+
+            foreach (var child in control.GetTemplateDescendants())
+            {
+                if (child is T match && string.Equals(match.Name, name, StringComparison.Ordinal))
+                {
+                    return match;
+                }
+            }
+
+            return null;
         }
 
         private async void OnSaveLogClick(object? sender, RoutedEventArgs e)
