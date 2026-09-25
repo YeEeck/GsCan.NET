@@ -107,8 +107,11 @@
 
     <Style Selector="Border.chip">
         <Setter Property="CornerRadius" Value="11" />
-        <Setter Property="Padding" Value="10,3" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
         <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
     </Style>
 
     <Style Selector="Border.chip.muted">
@@ -122,6 +125,8 @@
     <Style Selector="Border.chip TextBlock">
         <Setter Property="FontSize" Value="12" />
         <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
     </Style>
 
     <Style Selector="Border.chip.muted TextBlock">
@@ -496,15 +501,16 @@
     </Style>
 
     <Style Selector="ComboBox.toolbar">
-        <Setter Property="MinHeight" Value="36" />
-        <Setter Property="Padding" Value="10,4,8,4" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="8,0,4,0" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="FontSize" Value="13" />
     </Style>
     <Style Selector="ComboBox.toolbar ComboBoxItem">
-        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinHeight" Value="28" />
         <Setter Property="Padding" Value="8,4" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />

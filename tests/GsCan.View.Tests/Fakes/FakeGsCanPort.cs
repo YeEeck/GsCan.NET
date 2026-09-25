@@ -12,6 +12,12 @@ namespace GsCan.View.Tests.Fakes
         public List<DeviceInfo> Devices { get; } = new List<DeviceInfo>();
         public Exception? OpenException { get; set; }
 
+        /// <summary>
+        /// When set, Open reports this ChannelCount instead of DeviceInfo.ChannelCount.
+        /// Mirrors real Device.Open discovering the count after List returned 0.
+        /// </summary>
+        public int? OpenChannelCount { get; set; }
+
         public int ListCallCount { get; private set; }
         public int OpenCallCount { get; private set; }
         public int DisposeCallCount { get; private set; }
@@ -31,7 +37,7 @@ namespace GsCan.View.Tests.Fakes
                 throw OpenException;
             }
 
-            var device = new FakeOpenedDevice(info.Path, info.ChannelCount, this);
+            var device = new FakeOpenedDevice(info.Path, OpenChannelCount ?? info.ChannelCount, this);
             LastOpenedDevice = device;
             return device;
         }

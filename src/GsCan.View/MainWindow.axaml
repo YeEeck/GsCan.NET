@@ -20,7 +20,7 @@
     </Window.Resources>
     <Grid RowDefinitions="Auto,Auto,*,5,168,Auto">
         <Border Grid.Row="0" Classes="toolbar">
-            <Grid ColumnDefinitions="Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <TextBlock Classes="section"
                            Margin="0,0,12,0"
                            VerticalAlignment="Center"
@@ -35,6 +35,14 @@
                           SelectedItem="{Binding SelectedDevice}"
                           ToolTip.Tip="{Binding SelectedDevice.Path}"
                           DropDownOpened="OnDeviceDropDownOpened">
+                    <ComboBox.SelectionBoxItemTemplate>
+                        <DataTemplate x:DataType="gscan:DeviceInfo">
+                            <TextBlock VerticalAlignment="Center"
+                                       FontSize="13"
+                                       TextTrimming="CharacterEllipsis"
+                                       Text="{Binding Converter={StaticResource DeviceLabel}}" />
+                        </DataTemplate>
+                    </ComboBox.SelectionBoxItemTemplate>
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="gscan:DeviceInfo">
                             <Grid ColumnDefinitions="Auto,*,Auto"
@@ -76,17 +84,20 @@
                     <Button Classes="compact"
                             Command="{Binding Close}"
                             Content="关闭" />
+                </StackPanel>
+                <Grid Grid.Column="3"
+                      Width="64"
+                      Margin="8,0,0,0"
+                      VerticalAlignment="Center">
                     <Border Classes="chip muted" IsVisible="{Binding !IsDeviceOpen}">
                         <TextBlock Text="未打开" />
                     </Border>
                     <Border Classes="chip ok"
-                            MaxWidth="280"
                             IsVisible="{Binding IsDeviceOpen}"
                             ToolTip.Tip="{Binding OpenedPath}">
-                        <TextBlock Text="{Binding OpenedLabel}"
-                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="已打开" />
                     </Border>
-                </StackPanel>
+                </Grid>
             </Grid>
         </Border>
 

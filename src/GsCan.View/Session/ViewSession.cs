@@ -344,7 +344,47 @@ namespace GsCan.View.Session
 
             Channels = channels;
             _pumps = new ReadPump?[channels.Length];
+            WriteOpenedChannelCountToList(_opened.Path, _opened.ChannelCount);
             Persist();
+        }
+
+        private void WriteOpenedChannelCountToList(string path, int channelCount)
+        {
+            if (channelCount <= 0)
+            {
+                return;
+            }
+
+            var current = _deviceList;
+            DeviceInfo? listed = null;
+            bool listChanged = false;
+            var updated = new DeviceInfo[current.Count];
+            for (int i = 0; i < current.Count; i++)
+            {
+                var item = current[i];
+                if (string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase)
+                    && item.ChannelCount != channelCount)
+                {
+                    item = new DeviceInfo(item.Path, channelCount);
+                    listChanged = true;
+                }
+
+                updated[i] = item;
+                if (string.Equals(item.Path, path, StringComparison.OrdinalIgnoreCase))
+                {
+                    listed = item;
+                }
+            }
+
+            if (listChanged)
+            {
+                DeviceList = updated;
+            }
+
+            if (listed != null)
+            {
+                SelectedDevice = listed;
+            }
         }
 
         public void StartChannel(int index)

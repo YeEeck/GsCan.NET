@@ -46,6 +46,11 @@ namespace GsCan.View
 
         public static string ChannelText(int channelCount)
         {
+            if (channelCount <= 0)
+            {
+                return string.Empty;
+            }
+
             return channelCount.ToString(CultureInfo.InvariantCulture) + " 路通道";
         }
 

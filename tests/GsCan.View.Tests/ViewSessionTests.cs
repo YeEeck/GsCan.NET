@@ -143,6 +143,25 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
+        public void Open_writes_discovered_ChannelCount_onto_the_listed_Device()
+        {
+            var path = @"\\?\usb#a";
+            var port = new FakeGsCanPort();
+            port.Devices.Add(new DeviceInfo(path, 0));
+            port.OpenChannelCount = 2;
+            var session = new ViewSession(port);
+            session.RefreshDevices();
+            session.SelectedDevice = session.DeviceList[0];
+
+            session.OpenSelected();
+
+            Assert.Equal(2, session.DeviceList[0].ChannelCount);
+            Assert.Equal(2, session.SelectedDevice!.ChannelCount);
+            Assert.Same(session.DeviceList[0], session.SelectedDevice);
+            Assert.Equal(2, session.Channels.Count);
+        }
+
+        [Fact]
         public void Open_sets_OpenedPath_and_creates_stopped_Channels()
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);
