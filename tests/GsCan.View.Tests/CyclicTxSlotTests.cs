@@ -228,7 +228,7 @@ namespace GsCan.View.Tests
                 var clock = new FakeClock();
                 var info = new DeviceInfo(@"\\?\usb#a", 2);
                 var port = new FakeGsCanPort();
-                var session = new ViewSession(port, runBackgroundPumps: false, clock: clock, marshalToUi: true);
+                var session = new ViewSession(port, runBackgroundPumps: false, clock: clock);
                 session.Open(info);
                 session.StartChannel(0);
                 var slot = session.TxSlots[0];

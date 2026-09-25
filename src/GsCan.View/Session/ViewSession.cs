@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Text;
 using System.Threading;
 using GsCan;
 
@@ -16,14 +15,9 @@ namespace GsCan.View.Session
         private readonly IGsCanPort _port;
         private readonly IConfigStore? _configStore;
         private readonly bool _runBackgroundPumps;
-        private readonly bool _marshalToUi;
         private readonly IClock _clock;
-        private readonly TraceBuffer _trace;
-        private readonly LatestView _latest;
-        private readonly Dictionary<int, uint> _timeOriginByChannel = new Dictionary<int, uint>();
+        private readonly FrameIngest _ingest;
         private readonly SynchronizationContext? _ui;
-        private readonly object _pendingLock = new object();
-        private readonly Queue<FrameRow> _pendingRows = new Queue<FrameRow>();
         private readonly TxScheduler _scheduler;
         private readonly List<ChannelConfig> _heldChannels = new List<ChannelConfig>();
         private readonly List<bool> _heldEnabled = new List<bool>();
@@ -38,10 +32,6 @@ namespace GsCan.View.Session
         private IReadOnlyList<int> _channelChoices = TxSlot.DefaultChannelChoices;
         private ReceiveMode _receiveMode;
         private volatile bool _paused;
-        private int _pauseDroppedCount;
-        private int _pendingDrops;
-        private bool _flushPosted;
-        private IDisposable? _flushDelay;
 
         public ViewSession(IGsCanPort port)
             : this(port, runBackgroundPumps: true)
@@ -63,26 +53,27 @@ namespace GsCan.View.Session
         {
         }
 
-        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null, IConfigStore? configStore = null, bool marshalToUi = false)
+        internal ViewSession(IGsCanPort port, bool runBackgroundPumps, IClock? clock = null, IConfigStore? configStore = null)
         {
             _port = port ?? throw new ArgumentNullException(nameof(port));
             _configStore = configStore;
             _runBackgroundPumps = runBackgroundPumps;
-            _ui = SynchronizationContext.Current;
-            _marshalToUi = marshalToUi || (runBackgroundPumps && _ui != null);
+            _ui = runBackgroundPumps ? SynchronizationContext.Current : null;
             _clock = clock ?? new RealtimeClock();
             _deviceList = Array.Empty<DeviceInfo>();
             _channels = Array.Empty<ChannelState>();
-            Trace = new TraceRows(TraceBuffer.Capacity);
-            TraceDisplay = new ObservableCollection<FrameRowView>();
-            Latest = new ObservableCollection<LatestRow>();
-            _trace = new TraceBuffer(Trace);
-            _latest = new LatestView(Latest);
+            DisplayFilter = new DisplayFilter();
+            _ingest = new FrameIngest(_clock, DisplayFilter, _ui);
+            _ingest.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(FrameIngest.PauseDroppedCount))
+                {
+                    Raise(nameof(PauseDroppedCount));
+                }
+            };
             _scheduler = new TxScheduler(_clock, CyclicSend);
             TxSlots = new ObservableCollection<TxSlot>();
             AppendSlot();
-            DisplayFilter = new DisplayFilter();
-            Status = new SessionStatus();
             Trace.CollectionChanged += (_, _) =>
             {
                 Raise(nameof(TraceIsEmpty));
@@ -227,11 +218,11 @@ namespace GsCan.View.Session
 
         public bool ShowFilterChannel1 => _channelChoices.Count > 1;
 
-        public TraceRows Trace { get; }
+        public TraceRows Trace => _ingest.Trace;
 
-        public ObservableCollection<FrameRowView> TraceDisplay { get; }
+        public ObservableCollection<FrameRowView> TraceDisplay => _ingest.TraceDisplay;
 
-        public ObservableCollection<LatestRow> Latest { get; }
+        public ObservableCollection<LatestRow> Latest => _ingest.Latest;
 
         public bool TraceIsEmpty => Trace.Count == 0;
 
@@ -290,7 +281,7 @@ namespace GsCan.View.Session
 
         public bool CanRemoveTxSlot => TxSlots.Count > 1;
 
-        public SessionStatus Status { get; }
+        public SessionStatus Status => _ingest.Status;
 
         public bool Paused
         {
@@ -307,20 +298,7 @@ namespace GsCan.View.Session
             }
         }
 
-        public int PauseDroppedCount
-        {
-            get => _pauseDroppedCount;
-            private set
-            {
-                if (_pauseDroppedCount == value)
-                {
-                    return;
-                }
-
-                _pauseDroppedCount = value;
-                Raise(nameof(PauseDroppedCount));
-            }
-        }
+        public int PauseDroppedCount => _ingest.PauseDroppedCount;
 
         public void RefreshDevices()
         {
@@ -474,10 +452,7 @@ namespace GsCan.View.Session
 
             LastError = null;
             channel.IsRunning = true;
-            lock (_timeOriginByChannel)
-            {
-                _timeOriginByChannel.Remove(index);
-            }
+            _ingest.ResetTimeOrigin(index);
 
             StartPump(index);
             if (channel.ListenOnly)
@@ -507,7 +482,7 @@ namespace GsCan.View.Session
 
         public void Close()
         {
-            CancelFlushDelay();
+            _ingest.CancelFlush();
             DisableAllCyclic();
             Persist();
             if (_opened == null)
@@ -545,16 +520,7 @@ namespace GsCan.View.Session
 
         public void Clear()
         {
-            lock (_pendingLock)
-            {
-                _pendingRows.Clear();
-                _pendingDrops = 0;
-            }
-
-            CancelFlushDelay();
-            _trace.Clear();
-            TraceDisplay.Clear();
-            _latest.Clear();
+            _ingest.Clear();
         }
 
         public void SaveLog(string path)
@@ -869,38 +835,10 @@ namespace GsCan.View.Session
         public void PumpUntilIdle()
         {
             DrainRunningChannels();
-            if (!ShouldMarshalToUi)
-            {
-                SyncTraceDisplay();
-                return;
-            }
-
-            while (true)
-            {
-                FlushPending(reschedule: false);
-                lock (_pendingLock)
-                {
-                    if (_pendingRows.Count == 0 && _pendingDrops == 0)
-                    {
-                        _flushPosted = false;
-                        break;
-                    }
-                }
-            }
+            _ingest.FlushUntilIdle();
         }
 
-        internal int PendingCount
-        {
-            get
-            {
-                lock (_pendingLock)
-                {
-                    return _pendingRows.Count;
-                }
-            }
-        }
-
-        internal void DrainRunningChannels()
+        private void DrainRunningChannels()
         {
             if (_opened == null)
             {
@@ -1003,260 +941,15 @@ namespace GsCan.View.Session
 
         private void Accept(int channelIndex, CanFrame frame)
         {
-            lock (_timeOriginByChannel)
-            {
-                if (!_timeOriginByChannel.ContainsKey(channelIndex))
-                {
-                    _timeOriginByChannel[channelIndex] = frame.TimestampMicroseconds;
-                }
-            }
-
-            Status.Observe(frame);
-            ErrorClass.Classification? error = null;
             if (frame.Kind == CanFrameKind.Error)
             {
-                var classified = ErrorClass.Describe(frame);
-                ObserveError(channelIndex, classified);
-                error = classified;
+                ObserveError(channelIndex, ErrorClass.Describe(frame));
             }
 
-            if (!ShouldMarshalToUi)
-            {
-                Status.Publish();
-            }
-
-            if (_paused)
-            {
-                PublishDrop();
-                return;
-            }
-
-            if (!DisplayFilter.Matches(channelIndex, frame))
-            {
-                return;
-            }
-
-            PublishRow(ToRow(channelIndex, frame, error));
+            _ingest.Accept(channelIndex, frame, _paused);
         }
 
-        private bool ShouldMarshalToUi => _marshalToUi;
-
-        private void PublishRow(FrameRow row)
-        {
-            if (!ShouldMarshalToUi)
-            {
-                _trace.Append(row);
-                _latest.Observe(row);
-                return;
-            }
-
-            bool post;
-            lock (_pendingLock)
-            {
-                _pendingRows.Enqueue(row);
-                while (_pendingRows.Count > TraceBuffer.Capacity)
-                {
-                    _pendingRows.Dequeue();
-                }
-
-                post = NeedFlush();
-            }
-
-            if (post)
-            {
-                _ui!.Post(_ => FlushPending(reschedule: true), null);
-            }
-        }
-
-        private void PublishDrop()
-        {
-            if (!ShouldMarshalToUi)
-            {
-                PauseDroppedCount++;
-                return;
-            }
-
-            bool post;
-            lock (_pendingLock)
-            {
-                _pendingDrops++;
-                post = NeedFlush();
-            }
-
-            if (post)
-            {
-                _ui!.Post(_ => FlushPending(reschedule: true), null);
-            }
-        }
-
-        private bool NeedFlush()
-        {
-            if (_flushPosted)
-            {
-                return false;
-            }
-
-            _flushPosted = true;
-            return true;
-        }
-
-        private void FlushPending(bool reschedule)
-        {
-            FrameRow[] rows;
-            int drops;
-            bool more;
-            lock (_pendingLock)
-            {
-                rows = _pendingRows.ToArray();
-                _pendingRows.Clear();
-                drops = _pendingDrops;
-                _pendingDrops = 0;
-                more = false;
-                _flushPosted = false;
-            }
-
-            _trace.AppendMany(rows);
-            SyncTraceDisplay();
-            _latest.ObserveMany(rows);
-
-            if (drops != 0)
-            {
-                PauseDroppedCount += drops;
-            }
-
-            Status.Publish();
-
-            lock (_pendingLock)
-            {
-                more = _pendingRows.Count > 0 || _pendingDrops != 0;
-                if (more && reschedule)
-                {
-                    _flushPosted = true;
-                }
-                else if (!more)
-                {
-                    _flushPosted = false;
-                }
-            }
-
-            if (more && reschedule)
-            {
-                ScheduleFlushDelay();
-            }
-        }
-
-        private void ScheduleFlushDelay()
-        {
-            CancelFlushDelay();
-            _flushDelay = _clock.Schedule(
-                TimeSpan.FromMilliseconds(33),
-                () =>
-                {
-                    if (ShouldMarshalToUi)
-                    {
-                        _ui!.Post(_ => FlushPending(reschedule: true), null);
-                    }
-                    else
-                    {
-                        FlushPending(reschedule: true);
-                    }
-                });
-        }
-
-        private void CancelFlushDelay()
-        {
-            _flushDelay?.Dispose();
-            _flushDelay = null;
-        }
-
-        private void SyncTraceDisplay()
-        {
-            int n = Trace.Count;
-            if (n > TraceBuffer.DisplayCapacity)
-            {
-                n = TraceBuffer.DisplayCapacity;
-            }
-
-            int start = Trace.Count - n;
-            while (TraceDisplay.Count < n)
-            {
-                TraceDisplay.Add(new FrameRowView());
-            }
-
-            while (TraceDisplay.Count > n)
-            {
-                TraceDisplay.RemoveAt(TraceDisplay.Count - 1);
-            }
-
-            for (int i = 0; i < n; i++)
-            {
-                TraceDisplay[i].CopyFrom(Trace[start + i]);
-            }
-        }
-
-        private FrameRow ToRow(int channelIndex, CanFrame frame, ErrorClass.Classification? error)
-        {
-            uint origin;
-            lock (_timeOriginByChannel)
-            {
-                origin = _timeOriginByChannel[channelIndex];
-            }
-
-            var data = frame.Data ?? Array.Empty<byte>();
-            string errorClass = error?.Name ?? string.Empty;
-            string errorHint = error?.Hint ?? string.Empty;
-
-            return new FrameRow(
-                relativeMilliseconds: (frame.TimestampMicroseconds - origin) / 1000.0,
-                channel: channelIndex,
-                kind: KindText(frame.Kind),
-                id: frame.Id,
-                extended: frame.Extended,
-                remote: frame.Remote,
-                isFd: frame.IsFd,
-                bitRateSwitch: frame.BitRateSwitch,
-                errorStateIndicator: frame.ErrorStateIndicator,
-                overflow: frame.Overflow,
-                length: data.Length,
-                dataHex: ToHex(data),
-                timestampMicroseconds: frame.TimestampMicroseconds,
-                errorClass: errorClass,
-                errorHint: errorHint);
-        }
-
-        private static string KindText(CanFrameKind kind)
-        {
-            switch (kind)
-            {
-                case CanFrameKind.Echo:
-                    return "Echo";
-                case CanFrameKind.Error:
-                    return "Error";
-                default:
-                    return "Rx";
-            }
-        }
-
-        private static string ToHex(byte[] data)
-        {
-            if (data.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var text = new StringBuilder(data.Length * 3);
-            for (int i = 0; i < data.Length; i++)
-            {
-                if (i > 0)
-                {
-                    text.Append(' ');
-                }
-
-                text.Append(data[i].ToString("X2"));
-            }
-
-            return text.ToString();
-        }
+        private bool ShouldMarshalToUi => _ui != null;
 
         private void Raise(string propertyName)
         {

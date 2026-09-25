@@ -12,6 +12,10 @@ namespace GsCan.View.Session
     /// </summary>
     public sealed class TraceRows : IList<FrameRow>, IList, INotifyCollectionChanged, INotifyPropertyChanged
     {
+        public const int DefaultCapacity = 100_000;
+
+        public const int DisplayCapacity = 128;
+
         private static readonly NotifyCollectionChangedEventArgs ResetArgs =
             new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset);
 
@@ -23,7 +27,7 @@ namespace GsCan.View.Session
         private int _count;
 
         public TraceRows()
-            : this(TraceBuffer.Capacity)
+            : this(DefaultCapacity)
         {
         }
 

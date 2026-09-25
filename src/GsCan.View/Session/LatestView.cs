@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using GsCan;
 
 namespace GsCan.View.Session
 {
@@ -168,14 +169,14 @@ namespace GsCan.View.Session
         private readonly struct Key : IEquatable<Key>
         {
             private readonly int _channel;
-            private readonly string _kind;
+            private readonly CanFrameKind _kind;
             private readonly uint _id;
             private readonly bool _extended;
             private readonly bool _remote;
             private readonly bool _isFd;
             private readonly string _errorClass;
 
-            private Key(int channel, string kind, uint id, bool extended, bool remote, bool isFd, string errorClass)
+            private Key(int channel, CanFrameKind kind, uint id, bool extended, bool remote, bool isFd, string errorClass)
             {
                 _channel = channel;
                 _kind = kind;
@@ -188,12 +189,12 @@ namespace GsCan.View.Session
 
             public static Key From(FrameRow row)
             {
-                if (string.Equals(row.Kind, "Error", StringComparison.Ordinal))
+                if (row.FrameKind == CanFrameKind.Error)
                 {
-                    return new Key(row.Channel, row.Kind, 0, false, false, false, row.ErrorClass ?? string.Empty);
+                    return new Key(row.Channel, row.FrameKind, 0, false, false, false, row.ErrorClass ?? string.Empty);
                 }
 
-                return new Key(row.Channel, row.Kind, row.Id, row.Extended, row.Remote, row.IsFd, string.Empty);
+                return new Key(row.Channel, row.FrameKind, row.Id, row.Extended, row.Remote, row.IsFd, string.Empty);
             }
 
             public bool Equals(Key other)
@@ -203,7 +204,7 @@ namespace GsCan.View.Session
                     && _extended == other._extended
                     && _remote == other._remote
                     && _isFd == other._isFd
-                    && string.Equals(_kind, other._kind, StringComparison.Ordinal)
+                    && _kind == other._kind
                     && string.Equals(_errorClass, other._errorClass, StringComparison.Ordinal);
             }
 

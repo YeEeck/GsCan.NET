@@ -1,4 +1,5 @@
 using System.Globalization;
+using GsCan;
 
 namespace GsCan.View.Session
 {
@@ -19,11 +20,13 @@ namespace GsCan.View.Session
             string dataHex,
             uint timestampMicroseconds,
             string errorClass = "",
-            string errorHint = "")
+            string errorHint = "",
+            CanFrameKind frameKind = CanFrameKind.Rx)
         {
             RelativeMilliseconds = relativeMilliseconds;
             Channel = channel;
             Kind = kind;
+            FrameKind = frameKind;
             Id = id;
             Extended = extended;
             Remote = remote;
@@ -41,6 +44,7 @@ namespace GsCan.View.Session
         public double RelativeMilliseconds { get; }
         public int Channel { get; }
         public string Kind { get; }
+        internal CanFrameKind FrameKind { get; }
         public uint Id { get; }
 
         public string IdHex => Extended
@@ -48,7 +52,7 @@ namespace GsCan.View.Session
             : Id.ToString("X3", CultureInfo.InvariantCulture);
 
         public string IdDisplay =>
-            string.Equals(Kind, "Error", System.StringComparison.Ordinal) && !string.IsNullOrEmpty(ErrorClass)
+            FrameKind == CanFrameKind.Error && !string.IsNullOrEmpty(ErrorClass)
                 ? ErrorClass
                 : IdHex;
         public bool Extended { get; }
