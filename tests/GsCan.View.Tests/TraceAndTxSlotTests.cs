@@ -436,7 +436,9 @@ namespace GsCan.View.Tests
             session.SendOnce(0);
 
             Assert.Empty(opened.Sent);
-            Assert.Equal("只听通道不能发送。", session.LastError);
+            Assert.Null(session.LastError);
+            Assert.False(session.TxSlots[0].CanSend);
+            Assert.Equal("只听通道不能发送", session.TxSlots[0].SendUnavailableReason);
         }
 
         [Fact]

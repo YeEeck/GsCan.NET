@@ -72,6 +72,14 @@ _Avoid_: Filter（当实际指硬件滤波时）, 验收滤波, Hardware Filter
 发送表里的一行：Channel、ID、标志、DLC、数据、周期、使能。DLC 是 payload 字节数（经典 0–8；FD 另加 12/16/20/24/32/48/64），不是 0–15 编码。周期为 0 表示只发一次。表按需增减，不是硬件发送邮箱。
 _Avoid_: Message, Transmit window, 报文, CanFrame（当实际指这行配置时）, 邮箱, mailbox, DL（当实际指这一列时）
 
+**使能**:
+TxSlot 上该行周期发送是否武装。不是控件灰不灰，也不是一次「发送」。
+_Avoid_: 启用（当实际指按钮可点时）, Enabled（当实际指控件 IsEnabled 时）
+
+**Pause**:
+冻 Trace / Latest 画面。不是 Channel Stop，也不停泵，也不挡 TxSlot。
+_Avoid_: Stop（当实际指冻画面时）, 停止, 暂停发送
+
 **Log**:
 把 Trace 存成的 CSV 文件。第一版只写、不打开。
 _Avoid_: ASC, BLF, trc, 录波, Trace（当实际指存盘文件时）

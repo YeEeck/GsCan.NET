@@ -41,44 +41,68 @@ namespace GsCan.View.Session
         public int Bitrate
         {
             get => _bitrate;
-            set => Set(ref _bitrate, value, nameof(Bitrate));
+            set => SetOption(ref _bitrate, value, nameof(Bitrate));
         }
 
         public bool FdEnabled
         {
             get => _fdEnabled;
-            set => Set(ref _fdEnabled, value, nameof(FdEnabled));
+            set => SetOption(ref _fdEnabled, value, nameof(FdEnabled));
         }
 
         public int DataBitrate
         {
             get => _dataBitrate;
-            set => Set(ref _dataBitrate, value, nameof(DataBitrate));
+            set => SetOption(ref _dataBitrate, value, nameof(DataBitrate));
         }
 
         public bool ListenOnly
         {
             get => _listenOnly;
-            set => Set(ref _listenOnly, value, nameof(ListenOnly));
+            set => SetOption(ref _listenOnly, value, nameof(ListenOnly));
         }
 
         public bool Loopback
         {
             get => _loopback;
-            set => Set(ref _loopback, value, nameof(Loopback));
+            set => SetOption(ref _loopback, value, nameof(Loopback));
         }
 
         public bool OneShot
         {
             get => _oneShot;
-            set => Set(ref _oneShot, value, nameof(OneShot));
+            set => SetOption(ref _oneShot, value, nameof(OneShot));
         }
 
         public bool IsRunning
         {
             get => _isRunning;
-            set => Set(ref _isRunning, value, nameof(IsRunning));
+            set
+            {
+                if (_isRunning == value)
+                {
+                    return;
+                }
+
+                _isRunning = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsRunning)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanStart)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanStop)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanEditOptions)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StartUnavailableReason)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(StopUnavailableReason)));
+            }
         }
+
+        public bool CanStart => !_isRunning;
+
+        public bool CanStop => _isRunning;
+
+        public bool CanEditOptions => !_isRunning;
+
+        public string? StartUnavailableReason => _isRunning ? "通道已在运行" : null;
+
+        public string? StopUnavailableReason => _isRunning ? null : "通道未启动";
 
         public void Start() => _start?.Invoke(Index);
 
@@ -102,6 +126,16 @@ namespace GsCan.View.Session
                 case 4_000_000: return "4M";
                 default: return bitsPerSecond.ToString();
             }
+        }
+
+        private void SetOption<T>(ref T field, T value, string propertyName)
+        {
+            if (_isRunning)
+            {
+                return;
+            }
+
+            Set(ref field, value, propertyName);
         }
 
         private void Set<T>(ref T field, T value, string propertyName)

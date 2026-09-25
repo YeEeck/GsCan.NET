@@ -61,7 +61,7 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
-        public void ListenOnly_stops_running_cyclic_and_does_not_send()
+        public void ListenOnly_cannot_change_while_running_and_does_not_send_after_restart()
         {
             var (session, opened, clock) = OpenStarted();
             EnableCyclic(session, slotIndex: 0, channel: 0, id: 0x200);
@@ -70,10 +70,17 @@ namespace GsCan.View.Tests
             Assert.Single(opened.Sent);
 
             session.Channels[0].ListenOnly = true;
-            Assert.False(session.TxSlots[0].Enabled);
+            Assert.False(session.Channels[0].ListenOnly);
+            Assert.True(session.TxSlots[0].Enabled);
+
+            session.StopChannel(0);
+            session.Channels[0].ListenOnly = true;
+            session.StartChannel(0);
+            session.TxSlots[0].Enabled = true;
 
             clock.Advance(TimeSpan.FromMilliseconds(50));
             Assert.Single(opened.Sent);
+            Assert.False(session.TxSlots[0].Enabled);
         }
 
         [Fact]

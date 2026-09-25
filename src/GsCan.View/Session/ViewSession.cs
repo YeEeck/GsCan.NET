@@ -10,6 +10,8 @@ namespace GsCan.View.Session
 {
     public sealed class ViewSession : INotifyPropertyChanged
     {
+        private const string DeviceMustCloseReason = "请先关闭当前 Device";
+
         // Held for later List/Open/Start. Construct must not call the port.
         private readonly IGsCanPort _port;
         private readonly IConfigStore? _configStore;
@@ -33,6 +35,7 @@ namespace GsCan.View.Session
         private string? _openedPath;
         private string? _lastError;
         private DeviceInfo? _selectedDevice;
+        private IReadOnlyList<int> _channelChoices = TxSlot.DefaultChannelChoices;
         private ReceiveMode _receiveMode;
         private volatile bool _paused;
         private int _pauseDroppedCount;
@@ -80,7 +83,12 @@ namespace GsCan.View.Session
             AppendSlot();
             DisplayFilter = new DisplayFilter();
             Status = new SessionStatus();
-            Trace.CollectionChanged += (_, _) => Raise(nameof(TraceIsEmpty));
+            Trace.CollectionChanged += (_, _) =>
+            {
+                Raise(nameof(TraceIsEmpty));
+                Raise(nameof(CanSaveLog));
+                Raise(nameof(SaveLogUnavailableReason));
+            };
             Latest.CollectionChanged += (_, _) => Raise(nameof(LatestIsEmpty));
             RestoreFromStore();
             DisplayFilter.PropertyChanged += OnDisplayFilterPropertyChanged;
@@ -104,6 +112,7 @@ namespace GsCan.View.Session
                 Raise(nameof(OpenedPath));
                 Raise(nameof(OpenedLabel));
                 Raise(nameof(IsDeviceOpen));
+                RaiseDeviceCommandAvailability();
             }
         }
 
@@ -173,11 +182,50 @@ namespace GsCan.View.Session
                     return;
                 }
 
+                if (_opened != null
+                    && (value == null
+                        || !string.Equals(value.Path, _opened.Path, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return;
+                }
+
                 _selectedDevice = value;
                 Raise(nameof(SelectedDevice));
+                RaiseDeviceCommandAvailability();
                 Persist();
             }
         }
+
+        public bool CanSelectDevice => !IsDeviceOpen;
+
+        public string? DeviceSelectUnavailableReason =>
+            IsDeviceOpen ? DeviceMustCloseReason : null;
+
+        public string? DeviceComboTip =>
+            IsDeviceOpen ? DeviceSelectUnavailableReason : SelectedDevice?.Path;
+
+        public bool CanRefreshDevices => !IsDeviceOpen;
+
+        public string? RefreshUnavailableReason =>
+            IsDeviceOpen ? DeviceMustCloseReason : null;
+
+        public bool CanOpenSelected => !IsDeviceOpen && SelectedDevice != null;
+
+        public string? OpenUnavailableReason =>
+            IsDeviceOpen
+                ? DeviceMustCloseReason
+                : SelectedDevice == null
+                    ? "未选择设备"
+                    : null;
+
+        public bool CanClose => IsDeviceOpen;
+
+        public string? CloseUnavailableReason =>
+            IsDeviceOpen ? null : "未打开 Device";
+
+        public IReadOnlyList<int> ChannelChoices => _channelChoices;
+
+        public bool ShowFilterChannel1 => _channelChoices.Count > 1;
 
         public TraceRows Trace { get; }
 
@@ -188,6 +236,10 @@ namespace GsCan.View.Session
         public bool TraceIsEmpty => Trace.Count == 0;
 
         public bool LatestIsEmpty => Latest.Count == 0;
+
+        public bool CanSaveLog => Trace.Count > 0;
+
+        public string? SaveLogUnavailableReason => CanSaveLog ? null : "Trace 为空";
 
         public ReceiveMode ReceiveMode
         {
@@ -319,7 +371,6 @@ namespace GsCan.View.Session
 
             if (_opened != null)
             {
-                LastError = "已经打开一块 Device，请先关闭。";
                 return;
             }
 
@@ -347,6 +398,9 @@ namespace GsCan.View.Session
 
             Channels = channels;
             _pumps = new ReadPump?[channels.Length];
+            SetChannelChoices(channels.Length);
+            ClampTxSlotChannels();
+            RefreshSendAvailability();
             WriteOpenedChannelCountToList(_opened.Path, _opened.ChannelCount);
             Persist();
         }
@@ -479,6 +533,8 @@ namespace GsCan.View.Session
                 _pumps = Array.Empty<ReadPump?>();
                 OpenedPath = null;
                 Channels = Array.Empty<ChannelState>();
+                SetChannelChoices(0);
+                RefreshSendAvailability();
                 LastError = null;
             }
             finally
@@ -592,26 +648,15 @@ namespace GsCan.View.Session
         {
             error = null;
             stopCyclic = false;
-            if (_opened == null || slotIndex < 0 || slotIndex >= TxSlots.Count)
+            if (slotIndex < 0 || slotIndex >= TxSlots.Count)
             {
                 return false;
             }
 
             var slot = TxSlots[slotIndex];
-            if (slot.Channel < 0 || slot.Channel >= Channels.Count)
+            var opened = _opened;
+            if (opened == null || !TryDescribeSend(slot.Channel, out _))
             {
-                return false;
-            }
-
-            var channel = Channels[slot.Channel];
-            if (!channel.IsRunning)
-            {
-                return false;
-            }
-
-            if (channel.ListenOnly)
-            {
-                error = "只听通道不能发送。";
                 return false;
             }
 
@@ -626,7 +671,7 @@ namespace GsCan.View.Session
 
             try
             {
-                _opened.Send(slot.Channel, frame);
+                opened.Send(slot.Channel, frame);
                 return true;
             }
             catch (GsCanException ex)
@@ -666,6 +711,11 @@ namespace GsCan.View.Session
             }
 
             Persist();
+            if (e.PropertyName == nameof(TxSlot.Channel))
+            {
+                RefreshSendAvailability();
+            }
+
             if (e.PropertyName != nameof(TxSlot.Enabled)
                 && e.PropertyName != nameof(TxSlot.PeriodMs)
                 && e.PropertyName != nameof(TxSlot.Channel))
@@ -692,6 +742,12 @@ namespace GsCan.View.Session
             if (e.PropertyName != nameof(ChannelState.IsRunning))
             {
                 Persist();
+            }
+
+            if (e.PropertyName == nameof(ChannelState.IsRunning)
+                || e.PropertyName == nameof(ChannelState.ListenOnly))
+            {
+                RefreshSendAvailability();
             }
 
             if (e.PropertyName != nameof(ChannelState.ListenOnly))
@@ -807,13 +863,7 @@ namespace GsCan.View.Session
 
         private bool CanSendOn(int channelIndex)
         {
-            if (_opened == null || channelIndex < 0 || channelIndex >= Channels.Count)
-            {
-                return false;
-            }
-
-            var channel = Channels[channelIndex];
-            return channel.IsRunning && !channel.ListenOnly;
+            return TryDescribeSend(channelIndex, out _);
         }
 
         public void PumpUntilIdle()
@@ -1218,6 +1268,72 @@ namespace GsCan.View.Session
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
+        private void SetChannelChoices(int channelCount)
+        {
+            IReadOnlyList<int> choices;
+            if (channelCount <= 0)
+            {
+                choices = TxSlot.DefaultChannelChoices;
+            }
+            else if (channelCount == 1)
+            {
+                choices = new[] { 0 };
+            }
+            else if (channelCount == 2)
+            {
+                choices = TxSlot.DefaultChannelChoices;
+            }
+            else
+            {
+                var list = new int[channelCount];
+                for (int i = 0; i < channelCount; i++)
+                {
+                    list[i] = i;
+                }
+
+                choices = list;
+            }
+
+            _channelChoices = choices;
+            foreach (var slot in TxSlots)
+            {
+                slot.ChannelChoices = choices;
+            }
+
+            Raise(nameof(ChannelChoices));
+            Raise(nameof(ShowFilterChannel1));
+        }
+
+        private void ClampTxSlotChannels()
+        {
+            int max = Channels.Count;
+            if (max <= 0)
+            {
+                return;
+            }
+
+            foreach (var slot in TxSlots)
+            {
+                if (slot.Channel < 0 || slot.Channel >= max)
+                {
+                    slot.Channel = 0;
+                }
+            }
+        }
+
+        private void RaiseDeviceCommandAvailability()
+        {
+            Raise(nameof(CanSelectDevice));
+            Raise(nameof(DeviceSelectUnavailableReason));
+            Raise(nameof(DeviceComboTip));
+            Raise(nameof(CanRefreshDevices));
+            Raise(nameof(RefreshUnavailableReason));
+            Raise(nameof(CanOpenSelected));
+            Raise(nameof(OpenUnavailableReason));
+            Raise(nameof(CanClose));
+            Raise(nameof(CloseUnavailableReason));
+        }
+
         private void RestoreFromStore()
         {
             if (_configStore == null)
@@ -1321,6 +1437,7 @@ namespace GsCan.View.Session
         private TxSlot AppendSlot()
         {
             var slot = new TxSlot(TxSlots.Count, SendOnce, RemoveTxSlot);
+            slot.ChannelChoices = _channelChoices;
             slot.PropertyChanged += OnTxSlotPropertyChanged;
             TxSlots.Add(slot);
             _heldEnabled.Add(false);
@@ -1354,6 +1471,44 @@ namespace GsCan.View.Session
 
             Raise(nameof(CanAddTxSlot));
             Raise(nameof(CanRemoveTxSlot));
+            RefreshSendAvailability();
+        }
+
+        private void RefreshSendAvailability()
+        {
+            foreach (var slot in TxSlots)
+            {
+                slot.SetSendAvailability(CanSendSlot(slot, out var reason), reason);
+            }
+        }
+
+        private bool CanSendSlot(TxSlot slot, out string? reason)
+        {
+            return TryDescribeSend(slot.Channel, out reason);
+        }
+
+        private bool TryDescribeSend(int channelIndex, out string? reason)
+        {
+            if (_opened == null)
+            {
+                reason = "未打开 Device";
+                return false;
+            }
+
+            if (channelIndex < 0 || channelIndex >= Channels.Count || !Channels[channelIndex].IsRunning)
+            {
+                reason = "通道未启动";
+                return false;
+            }
+
+            if (Channels[channelIndex].ListenOnly)
+            {
+                reason = "只听通道不能发送";
+                return false;
+            }
+
+            reason = null;
+            return true;
         }
 
         private void ApplyTxSlotConfig(TxSlot slot, TxSlotConfig saved)

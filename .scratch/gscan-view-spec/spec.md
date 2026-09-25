@@ -108,6 +108,7 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 - **骨架**：单窗口自上而下：Device 条（启动与打开下拉会 List）；Channel 条（OneShot 在「更多」）；Display Filter 条；接收区（Trace | Latest、暂停/清空；Trace 始终钉底）；TxSlot 表（含 DLC）；状态栏。不对接、没有第二窗口。
 - **ErrorClass**：只在 View 把 SocketCAN 类位归成一个主因。优先级：Bus-off > Restarted > ACK > Stuff > Form > Bit0 > Bit1 > CRC > Error-passive > Error-warning > Error-active > Bus error > Unknown。ID 列显示该英文词；tooltip 与 LastError 用中文提示；CNT 位置位时提示末尾加 TEC/REC。Data 与 Log 仍是原值。库不解释。不解码 location / TRX。周期发送只在硬故障类停下。详见 ADR-0010。
 - **库能力缺口不在窗口里假装有**：IDENTIFY、软件端接、硬件滤波、`Channel.State`、总线恢复，都不做控件。
+- **命令可用性**：会话能预判的非法就禁用（LastError 只留给端口失败）；Device Open 锁身份，Channel Running 锁该路 `ChannelOptions`；发送与使能同一把钥匙且使能不是预约。详见 `.scratch/gscan-view-command-availability/spec.md` 与 ADR-0011。
 
 ## Testing Decisions
 
@@ -134,4 +135,5 @@ GsCan 已经能在 Windows 上打开 gs_usb Device、对每路 Channel 收发 Ca
 ## Further Notes
 
 - 库规格：`.scratch/gscan-net-spec/spec.md`。View 不得削弱其中 Echo、Stop、ListenOnly、无热插拔事件等条款。
-- ADR：`docs/adr/0001` 不是分析仪；`0002` Avalonia + Win-x64 zip；`0003` 一块 Device 两路 Channel、Trace+Latest；`0004` CSV 只写；`0005` Latest 键含 Kind；`0006` 暂停不停泵；`0007` 工程身份 `GsCan.View`；`0008` 记住表单但不上总线；`0009` TxSlot 是动态列表不是邮箱表；`0010` View 对 Error 做 ErrorClass，库不解释。
+- ADR：`docs/adr/0001` 不是分析仪；`0002` Avalonia + Win-x64 zip；`0003` 一块 Device 两路 Channel、Trace+Latest；`0004` CSV 只写；`0005` Latest 键含 Kind；`0006` 暂停不停泵；`0007` 工程身份 `GsCan.View`；`0008` 记住表单但不上总线；`0009` TxSlot 是动态列表不是邮箱表；`0010` View 对 Error 做 ErrorClass，库不解释；`0011` 能预判的非法就禁用，已生效配置必须先 unwind。
+- 命令可用性规格：`.scratch/gscan-view-command-availability/spec.md`。

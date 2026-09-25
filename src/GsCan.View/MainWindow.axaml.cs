@@ -42,6 +42,11 @@ namespace GsCan.View
 
         private void OnDeviceDropDownOpened(object? sender, EventArgs e)
         {
+            if (!_session.CanRefreshDevices)
+            {
+                return;
+            }
+
             _session.RefreshDevices();
             if (sender is not ComboBox combo)
             {
@@ -119,6 +124,11 @@ namespace GsCan.View
 
         private async void OnSaveLogClick(object? sender, RoutedEventArgs e)
         {
+            if (!_session.CanSaveLog)
+            {
+                return;
+            }
+
             var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "保存 Log",

@@ -33,7 +33,8 @@
                           ItemsSource="{Binding DeviceList}"
                           PlaceholderText="无设备"
                           SelectedItem="{Binding SelectedDevice}"
-                          ToolTip.Tip="{Binding SelectedDevice.Path}"
+                          IsEnabled="{Binding CanSelectDevice}"
+                          ToolTip.Tip="{Binding DeviceComboTip}"
                           DropDownOpened="OnDeviceDropDownOpened">
                     <ComboBox.SelectionBoxItemTemplate>
                         <DataTemplate x:DataType="gscan:DeviceInfo">
@@ -77,13 +78,19 @@
                             VerticalAlignment="Center">
                     <Button Classes="compact"
                             Command="{Binding RefreshDevices}"
-                            Content="刷新" />
+                            Content="刷新"
+                            IsEnabled="{Binding CanRefreshDevices}"
+                            ToolTip.Tip="{Binding RefreshUnavailableReason}" />
                     <Button Classes="compact accent"
                             Command="{Binding OpenSelected}"
-                            Content="打开" />
+                            Content="打开"
+                            IsEnabled="{Binding CanOpenSelected}"
+                            ToolTip.Tip="{Binding OpenUnavailableReason}" />
                     <Button Classes="compact"
                             Command="{Binding Close}"
-                            Content="关闭" />
+                            Content="关闭"
+                            IsEnabled="{Binding CanClose}"
+                            ToolTip.Tip="{Binding CloseUnavailableReason}" />
                 </StackPanel>
                 <Grid Grid.Column="3"
                       Width="64"
@@ -133,10 +140,13 @@
                                                 <Button Classes="compact accent"
                                                         Command="{Binding Start}"
                                                         Content="启动"
-                                                        IsEnabled="{Binding !IsRunning}" />
+                                                        IsEnabled="{Binding CanStart}"
+                                                        ToolTip.Tip="{Binding StartUnavailableReason}" />
                                                 <Button Classes="compact"
                                                         Command="{Binding Stop}"
-                                                        Content="停止" />
+                                                        Content="停止"
+                                                        IsEnabled="{Binding CanStop}"
+                                                        ToolTip.Tip="{Binding StopUnavailableReason}" />
                                             </StackPanel>
                                         </Border>
                                         <Border Classes="channel-group">
@@ -146,6 +156,7 @@
                                                           Width="110"
                                                           HorizontalAlignment="Left"
                                                           HorizontalContentAlignment="Left"
+                                                          IsEnabled="{Binding CanEditOptions}"
                                                           ItemsSource="{x:Static session:ChannelState.ArbitrationBitrates}"
                                                           SelectedItem="{Binding Bitrate}">
                                                     <ComboBox.ItemTemplate>
@@ -156,6 +167,7 @@
                                                 </ComboBox>
                                                 <CheckBox Classes="compact"
                                                           Content="FD"
+                                                          IsEnabled="{Binding CanEditOptions}"
                                                           IsChecked="{Binding FdEnabled}" />
                                                 <StackPanel Orientation="Horizontal"
                                                             Spacing="8"
@@ -166,6 +178,7 @@
                                                               Width="90"
                                                               HorizontalAlignment="Left"
                                                               HorizontalContentAlignment="Left"
+                                                              IsEnabled="{Binding CanEditOptions}"
                                                               ItemsSource="{x:Static session:ChannelState.DataBitrates}"
                                                               SelectedItem="{Binding DataBitrate}">
                                                         <ComboBox.ItemTemplate>
@@ -181,9 +194,11 @@
                                             <StackPanel>
                                                 <CheckBox Classes="compact"
                                                           Content="只听"
+                                                          IsEnabled="{Binding CanEditOptions}"
                                                           IsChecked="{Binding ListenOnly}" />
                                                 <CheckBox Classes="compact"
                                                           Content="环回"
+                                                          IsEnabled="{Binding CanEditOptions}"
                                                           IsChecked="{Binding Loopback}" />
                                             </StackPanel>
                                         </Border>
@@ -192,6 +207,7 @@
                                                 <Expander Classes="more" Header="更多">
                                                     <CheckBox Classes="compact"
                                                               Content="OneShot"
+                                                              IsEnabled="{Binding CanEditOptions}"
                                                               IsChecked="{Binding OneShot}" />
                                                 </Expander>
                                             </StackPanel>
@@ -219,6 +235,7 @@
                                   IsChecked="{Binding DisplayFilter.ShowChannel0}" />
                         <CheckBox Classes="compact"
                                   Content="1"
+                                  IsVisible="{Binding ShowFilterChannel1}"
                                   IsChecked="{Binding DisplayFilter.ShowChannel1}" />
                     </StackPanel>
                     <Rectangle Classes="vdiv" />
@@ -293,7 +310,11 @@
                                   Content="暂停"
                                   IsChecked="{Binding Paused}" />
                         <Button Classes="compact" Content="清空" Command="{Binding Clear}" />
-                        <Button Classes="compact" Content="保存 Log" Click="OnSaveLogClick" />
+                        <Button Classes="compact"
+                                Content="保存 Log"
+                                Click="OnSaveLogClick"
+                                IsEnabled="{Binding CanSaveLog}"
+                                ToolTip.Tip="{Binding SaveLogUnavailableReason}" />
                     </StackPanel>
                 </Grid>
                 <Grid>
@@ -545,7 +566,7 @@
                                                            Text="{Binding Index}" />
                                                 <ComboBox Grid.Column="1"
                                                           Classes="cell"
-                                                          ItemsSource="{x:Static session:TxSlot.ChannelChoices}"
+                                                          ItemsSource="{Binding ChannelChoices}"
                                                           SelectedItem="{Binding Channel}" />
                                                 <TextBox Grid.Column="2"
                                                          Classes="cell mono"
@@ -589,13 +610,16 @@
                                                 <ToggleButton Grid.Column="7"
                                                               Classes="switch"
                                                               IsChecked="{Binding Enabled}"
-                                                              ToolTip.Tip="周期大于 0 时按周期发送" />
+                                                              IsEnabled="{Binding CanEnable}"
+                                                              ToolTip.Tip="{Binding EnableTip}" />
                                                 <Button Grid.Column="8"
                                                         Classes="compact accent"
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Center"
                                                         Command="{Binding Send}"
-                                                        Content="发送" />
+                                                        Content="发送"
+                                                        IsEnabled="{Binding CanSend}"
+                                                        ToolTip.Tip="{Binding SendUnavailableReason}" />
                                                 <Button Grid.Column="9"
                                                         Classes="quiet"
                                                         Command="{Binding Remove}"

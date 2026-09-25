@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 
@@ -9,7 +10,7 @@ namespace GsCan.View.Session
         public const int MaxSlotCount = 16;
         public const int DefaultLength = 8;
 
-        public static readonly int[] ChannelChoices = { 0, 1 };
+        public static readonly int[] DefaultChannelChoices = { 0, 1 };
 
         public static readonly int[] ClassicLengths = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
 
@@ -32,6 +33,9 @@ namespace GsCan.View.Session
         private int _periodMs;
         private bool _enabled;
         private bool _canRemove;
+        private bool _canSend;
+        private string? _sendUnavailableReason = "未打开 Device";
+        private IReadOnlyList<int> _channelChoices = DefaultChannelChoices;
 
         public TxSlot(int index, Action<int>? sendOnce = null, Action<TxSlot>? remove = null)
         {
@@ -52,6 +56,40 @@ namespace GsCan.View.Session
         {
             get => _canRemove;
             internal set => Set(ref _canRemove, value, nameof(CanRemove));
+        }
+
+        public IReadOnlyList<int> ChannelChoices
+        {
+            get => _channelChoices;
+            internal set => Set(ref _channelChoices, value, nameof(ChannelChoices));
+        }
+
+        public bool CanSend => _canSend;
+
+        public bool CanEnable => _canSend;
+
+        public string? SendUnavailableReason => _sendUnavailableReason;
+
+        public string EnableTip =>
+            _canSend ? "周期大于 0 时按周期发送" : (_sendUnavailableReason ?? string.Empty);
+
+        internal void SetSendAvailability(bool canSend, string? reason)
+        {
+            if (_canSend == canSend && _sendUnavailableReason == reason)
+            {
+                return;
+            }
+
+            _canSend = canSend;
+            _sendUnavailableReason = reason;
+            Raise(nameof(CanSend));
+            Raise(nameof(CanEnable));
+            Raise(nameof(SendUnavailableReason));
+            Raise(nameof(EnableTip));
+            if (!canSend && _enabled)
+            {
+                Enabled = false;
+            }
         }
 
         public int Channel
@@ -214,7 +252,15 @@ namespace GsCan.View.Session
         public bool Enabled
         {
             get => _enabled;
-            set => Set(ref _enabled, value, nameof(Enabled));
+            set
+            {
+                if (value && !_canSend)
+                {
+                    return;
+                }
+
+                Set(ref _enabled, value, nameof(Enabled));
+            }
         }
 
         public void Send() => _sendOnce?.Invoke(Index);
