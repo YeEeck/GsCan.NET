@@ -47,7 +47,7 @@ Linux SocketCAN, events / `IObservable`, hardware acceptance filters, IDENTIFY, 
 - Windows with WinUSB. The library does not run on Linux or macOS.
 - A gs_usb adapter. FlintCAN-FD is the reference device.
 - To **use** the library: any target framework that can reference `netstandard2.0`.
-- To **build** it: the .NET 8 SDK. Rebuilding the native DLL additionally requires the Visual Studio C++ tools and CMake.
+- To **build** it: the .NET 10 SDK. Rebuilding the native DLL additionally requires the Visual Studio C++ tools and CMake.
 
 ## Install
 
@@ -184,7 +184,7 @@ The script installs `candle_api.dll` into `src/GsCan/runtimes/win-x64/native`, a
 
 ```
 src/GsCan/            GsCan library (netstandard2.0)
-src/GsCan.View/       GsCan View (net8.0, Avalonia, win-x64)
+src/GsCan.View/       GsCan View (net10.0, Avalonia, win-x64)
 tests/                xUnit tests (library + viewer session)
 native/candle-api/    Candle Windows API sources, vendored (LGPL)
 licenses/             GPL-3.0 / LGPL-3.0 license texts

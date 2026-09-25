@@ -47,7 +47,7 @@ Linux SocketCAN、事件 / `IObservable`、硬件验收滤波、IDENTIFY、软�
 - Windows（依赖 WinUSB）。本库不支持在 Linux 与 macOS 上运行。
 - 一块 gs_usb 适配器；参考设备为 FlintCAN-FD。
 - **使用**本库：目标框架能引用 `netstandard2.0` 即可。
-- **构建**本库：需要 .NET 8 SDK；若还要重新编译 native DLL，则另需 Visual Studio C++ 工具与 CMake。
+- **构建**本库：需要 .NET 10 SDK；若还要重新编译 native DLL，则另需 Visual Studio C++ 工具与 CMake。
 
 ## 安装
 
@@ -184,7 +184,7 @@ powershell -ExecutionPolicy Bypass -File native/candle-api/build.ps1
 
 ```
 src/GsCan/            GsCan 库（netstandard2.0）
-src/GsCan.View/       GsCan View（net8.0、Avalonia、win-x64）
+src/GsCan.View/       GsCan View（net10.0、Avalonia、win-x64）
 tests/                xUnit 测试（库 + 查看器会话）
 native/candle-api/    引入的 Candle Windows API 源码（LGPL）
 licenses/             GPL-3.0 / LGPL-3.0 许可证文本
