@@ -206,7 +206,7 @@
                                             <StackPanel>
                                                 <Expander Classes="more" Header="更多">
                                                     <CheckBox Classes="compact"
-                                                              Content="OneShot"
+                                                              Content="禁止自动重发"
                                                               IsEnabled="{Binding CanEditOptions}"
                                                               IsChecked="{Binding OneShot}" />
                                                 </Expander>
