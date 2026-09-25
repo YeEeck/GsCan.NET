@@ -107,7 +107,7 @@ namespace GsCan.View.Session
                 return Bit1;
             }
 
-            if ((location & ProtLocCrcSeq) != 0)
+            if (location == ProtLocCrcSeq)
             {
                 return Crc;
             }

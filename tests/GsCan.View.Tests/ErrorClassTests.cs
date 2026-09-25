@@ -56,6 +56,20 @@ namespace GsCan.View.Tests
             Assert.Equal(expected, session.TraceDisplay[0].IdHex);
         }
 
+        [Theory]
+        [InlineData(0x08, "CRC")]
+        [InlineData(0x0A, "Bus error")]
+        [InlineData(0x0B, "Bus error")]
+        [InlineData(0x19, "Bus error")]
+        public void Protocol_location_is_an_enum_not_a_crc_bitfield(byte location, string expected)
+        {
+            var (session, opened) = OpenStarted();
+            opened.Enqueue(0, ErrorFrame(ErrProt | ErrBusError, Payload(location: location)));
+            session.PumpUntilIdle();
+
+            Assert.Equal(expected, session.Trace[0].ErrorClass);
+        }
+
         [Fact]
         public void Bus_off_wins_over_ack_on_the_same_frame()
         {
