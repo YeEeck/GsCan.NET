@@ -63,6 +63,16 @@ namespace GsCan.View
         {
             var title = Title(path);
             var detail = Detail(path);
+            if (channelCount <= 0)
+            {
+                if (string.IsNullOrEmpty(detail) || string.Equals(detail, path, StringComparison.Ordinal))
+                {
+                    return title;
+                }
+
+                return title + " · " + detail;
+            }
+
             var channels = ChannelText(channelCount);
             if (string.IsNullOrEmpty(detail) || string.Equals(detail, path, StringComparison.Ordinal))
             {

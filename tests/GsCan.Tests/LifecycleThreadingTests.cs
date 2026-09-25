@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -72,6 +73,18 @@ namespace GsCan.Tests
             ch.Stop();
             device.Dispose();
             ch.Stop();
+        }
+
+        [Fact]
+        public void Concurrent_Send_from_two_threads_does_not_fail()
+        {
+            RunConcurrentSend(fd: false);
+        }
+
+        [Fact]
+        public void Concurrent_Fd_Send_from_two_threads_does_not_fail()
+        {
+            RunConcurrentSend(fd: true);
         }
 
         [Fact]
@@ -364,6 +377,106 @@ namespace GsCan.Tests
                 };
 
                 Assert.Throws<GsCanException>(readUntilFailure);
+            }
+        }
+
+        private static void RunConcurrentSend(bool fd)
+        {
+            Device? device;
+            try
+            {
+                if (!TryOpenFirst(out device))
+                {
+                    Console.WriteLine(
+                        fd
+                            ? "SKIP concurrent FD Send: no gs_usb device present."
+                            : "SKIP concurrent Send: no gs_usb device present.");
+                    return;
+                }
+            }
+            catch (GsCanException ex)
+            {
+                Console.WriteLine(
+                    (fd ? "SKIP concurrent FD Send: " : "SKIP concurrent Send: ") + ex.Message);
+                return;
+            }
+
+            using (device!)
+            {
+                var ch = device.Channels[0];
+                var options = fd
+                    ? new ChannelOptions { Bitrate = 500000, DataBitrate = 2000000, Loopback = true }
+                    : new ChannelOptions { Bitrate = 500000, Loopback = true };
+                ch.Start(options);
+                try
+                {
+                    const int perThread = 100;
+                    const int senderCount = 2;
+                    var errors = new ConcurrentBag<Exception>();
+                    var barrier = new Barrier(senderCount + 1);
+                    var stopReader = new ManualResetEventSlim(false);
+
+                    var reader = new Thread(() =>
+                    {
+                        barrier.SignalAndWait();
+                        while (!stopReader.IsSet)
+                        {
+                            try
+                            {
+                                ch.TryRead(out _, 10);
+                            }
+                            catch (GsCanException)
+                            {
+                                break;
+                            }
+                        }
+                    });
+                    reader.IsBackground = true;
+                    reader.Start();
+
+                    var senders = new Thread[senderCount];
+                    for (int t = 0; t < senderCount; t++)
+                    {
+                        byte tag = (byte)t;
+                        senders[t] = new Thread(() =>
+                        {
+                            barrier.SignalAndWait();
+                            for (int i = 0; i < perThread; i++)
+                            {
+                                try
+                                {
+                                    var payload = new byte[] { tag, (byte)i };
+                                    ch.Send(fd
+                                        ? CanFrame.Fd(0x100, payload)
+                                        : CanFrame.Classic(0x100, payload));
+                                }
+                                catch (Exception ex)
+                                {
+                                    errors.Add(ex);
+                                }
+                            }
+                        });
+                        senders[t].IsBackground = true;
+                        senders[t].Start();
+                    }
+
+                    foreach (var sender in senders)
+                    {
+                        Assert.True(sender.Join(15000), "sender did not finish");
+                    }
+
+                    stopReader.Set();
+                    Assert.True(reader.Join(2000), "reader did not finish");
+
+                    Assert.True(
+                        errors.IsEmpty,
+                        "concurrent Send failed: "
+                            + string.Join("; ", errors.Select(e => e.Message)));
+                }
+                finally
+                {
+                    ch.Stop();
+                }
             }
         }
     }

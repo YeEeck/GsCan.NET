@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -154,6 +155,96 @@ namespace GsCan.Tests
         }
 
         [Fact]
+        public void Concurrent_Send_on_both_channels_does_not_fail()
+        {
+            Device? device;
+            try
+            {
+                if (!TryOpenDualChannel(out device))
+                {
+                    Console.WriteLine("SKIP concurrent dual-channel Send: no dual-channel gs_usb device present.");
+                    return;
+                }
+            }
+            catch (GsCanException ex)
+            {
+                Console.WriteLine("SKIP concurrent dual-channel Send: " + ex.Message);
+                return;
+            }
+
+            using (device!)
+            {
+                var ch0 = device.Channels[0];
+                var ch1 = device.Channels[1];
+                ch0.Start(new ChannelOptions { Bitrate = 500000, Loopback = true });
+                ch1.Start(new ChannelOptions { Bitrate = 250000, Loopback = true });
+                try
+                {
+                    const int perThread = 100;
+                    var errors = new ConcurrentBag<Exception>();
+                    var barrier = new Barrier(3);
+                    var stopReader = new ManualResetEventSlim(false);
+
+                    var reader = new Thread(() =>
+                    {
+                        barrier.SignalAndWait();
+                        while (!stopReader.IsSet)
+                        {
+                            try
+                            {
+                                ch0.TryRead(out _, 5);
+                                ch1.TryRead(out _, 5);
+                            }
+                            catch (GsCanException)
+                            {
+                                break;
+                            }
+                        }
+                    });
+                    reader.IsBackground = true;
+                    reader.Start();
+
+                    void RunSender(Channel ch, byte tag)
+                    {
+                        barrier.SignalAndWait();
+                        for (int i = 0; i < perThread; i++)
+                        {
+                            try
+                            {
+                                ch.Send(CanFrame.Classic(0x200, new byte[] { tag, (byte)i }));
+                            }
+                            catch (Exception ex)
+                            {
+                                errors.Add(ex);
+                            }
+                        }
+                    }
+
+                    var sender0 = new Thread(() => RunSender(ch0, 0));
+                    var sender1 = new Thread(() => RunSender(ch1, 1));
+                    sender0.IsBackground = true;
+                    sender1.IsBackground = true;
+                    sender0.Start();
+                    sender1.Start();
+
+                    Assert.True(sender0.Join(15000), "ch0 sender did not finish");
+                    Assert.True(sender1.Join(15000), "ch1 sender did not finish");
+                    stopReader.Set();
+                    Assert.True(reader.Join(2000), "reader did not finish");
+                    Assert.True(
+                        errors.IsEmpty,
+                        "concurrent dual-channel Send failed: "
+                            + string.Join("; ", errors.Select(e => e.Message)));
+                }
+                finally
+                {
+                    ch0.Stop();
+                    ch1.Stop();
+                }
+            }
+        }
+
+        [Fact]
         public void Send_on_ch0_does_not_appear_on_ch1_TryRead_but_remains_on_ch0()
         {
             if (!TryOpenDualChannel(out var device))
@@ -247,6 +338,7 @@ namespace GsCan.Tests
                     int echo = 0;
                     int rx = 0;
                     int overflow = 0;
+                    Exception? pumpError = null;
                     var pump0 = StartPump(ch0, cts.Token, frame =>
                     {
                         if (frame.Overflow)
@@ -258,7 +350,7 @@ namespace GsCan.Tests
                         {
                             Interlocked.Increment(ref echo);
                         }
-                    });
+                    }, ex => Interlocked.CompareExchange(ref pumpError, ex, null));
                     var pump1 = StartPump(ch1, cts.Token, frame =>
                     {
                         if (frame.Overflow)
@@ -270,7 +362,7 @@ namespace GsCan.Tests
                         {
                             Interlocked.Increment(ref rx);
                         }
-                    });
+                    }, ex => Interlocked.CompareExchange(ref pumpError, ex, null));
 
                     ch0.Send(CanFrame.Classic(0x100, new byte[] { 0x01 }));
                     var sawCross = WaitFor(() => Volatile.Read(ref rx) >= 1, 400);
@@ -302,6 +394,7 @@ namespace GsCan.Tests
                     cts.Cancel();
                     pump0.Join(1000);
                     pump1.Join(1000);
+                    Assert.Null(pumpError);
 
                     Assert.True(rxCaughtUp, "RX did not catch up after TX stop, rx=" + Volatile.Read(ref rx)
                         + " echo=" + Volatile.Read(ref echo)
@@ -321,7 +414,11 @@ namespace GsCan.Tests
             }
         }
 
-        private static Thread StartPump(Channel channel, CancellationToken token, Action<CanFrame> onFrame)
+        private static Thread StartPump(
+            Channel channel,
+            CancellationToken token,
+            Action<CanFrame> onFrame,
+            Action<Exception>? onError = null)
         {
             var thread = new Thread(() =>
             {
@@ -340,12 +437,16 @@ namespace GsCan.Tests
                             onFrame(frame);
                         }
                     }
-                    catch (GsCanException)
+                    catch (GsCanException ex)
                     {
-                        if (token.IsCancellationRequested)
+                        if (token.IsCancellationRequested
+                            || ex.Message == "Channel is not started.")
                         {
                             break;
                         }
+
+                        onError?.Invoke(ex);
+                        break;
                     }
                 }
             });

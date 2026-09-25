@@ -39,6 +39,57 @@
         <Setter Property="ClipToBounds" Value="True" />
     </Style>
 
+    <Style Selector="WrapPanel.channel-row">
+        <Setter Property="ItemHeight" Value="28" />
+        <Setter Property="Margin" Value="10,6" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="Border.channel-group">
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1,0,0,0" />
+        <Setter Property="Padding" Value="12,0,0,0" />
+        <Setter Property="Margin" Value="0,0,12,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.channel-group.first">
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="Border.channel-group > StackPanel">
+        <Setter Property="Orientation" Value="Horizontal" />
+        <Setter Property="Spacing" Value="8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.channel-group TextBlock.filter-label">
+        <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="Border.channel-group CheckBox.compact">
+        <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <Style Selector="Border.channel-card Border.badge">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinWidth" Value="48" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="Border.channel-card Border.badge TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.channel-card Border.pill">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="Border.channel-card Border.pill TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
     <Style Selector="Border.table">
         <Setter Property="Background" Value="{DynamicResource SolidBackgroundFillColorSecondaryBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
@@ -615,10 +666,86 @@
     </Style>
 
     <Style Selector="Expander.more">
-        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinWidth" Value="0" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
         <Setter Property="FontSize" Value="12" />
-        <Setter Property="Foreground" Value="#64748B" />
+        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <StackPanel Orientation="Horizontal"
+                            Spacing="8"
+                            VerticalAlignment="Center">
+                    <ToggleButton x:Name="ExpanderHeader"
+                                  MinHeight="28"
+                                  Height="28"
+                                  MinWidth="0"
+                                  Padding="10,0,8,0"
+                                  FontSize="12"
+                                  Cursor="Hand"
+                                  VerticalAlignment="Center"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  Foreground="{TemplateBinding Foreground}"
+                                  Content="{TemplateBinding Header}"
+                                  IsChecked="{TemplateBinding IsExpanded, Mode=TwoWay}">
+                        <ToggleButton.Template>
+                            <ControlTemplate>
+                                <Border Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                        CornerRadius="4"
+                                        Padding="{TemplateBinding Padding}">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="6"
+                                                VerticalAlignment="Center">
+                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                          VerticalAlignment="Center"
+                                                          RecognizesAccessKey="True"
+                                                          Foreground="{TemplateBinding Foreground}" />
+                                        <Path x:Name="MoreChevron"
+                                              Width="9"
+                                              Height="6"
+                                              Stretch="Uniform"
+                                              Stroke="{TemplateBinding Foreground}"
+                                              StrokeThickness="1.2"
+                                              StrokeLineCap="Round"
+                                              StrokeJoin="Round"
+                                              Data="M 0 1 L 4.5 5.5 L 9 1"
+                                              VerticalAlignment="Center"
+                                              RenderTransformOrigin="50%,50%" />
+                                    </StackPanel>
+                                </Border>
+                            </ControlTemplate>
+                        </ToggleButton.Template>
+                    </ToggleButton>
+                    <ContentPresenter x:Name="PART_ContentPresenter"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      IsVisible="{TemplateBinding IsExpanded}"
+                                      VerticalAlignment="Center" />
+                </StackPanel>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+    <Style Selector="Expander.more /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="#475569" />
+    </Style>
+    <Style Selector="Expander.more /template/ ToggleButton#ExpanderHeader:pointerover">
+        <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+    </Style>
+    <Style Selector="Expander.more /template/ ToggleButton#ExpanderHeader:pressed">
+        <Setter Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+    </Style>
+    <Style Selector="Expander.more:expanded /template/ ToggleButton#ExpanderHeader /template/ Path#MoreChevron">
+        <Setter Property="RenderTransform" Value="rotate(180deg)" />
     </Style>
 </Styles>

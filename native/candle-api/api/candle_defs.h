@@ -84,6 +84,8 @@ typedef struct {
     UCHAR bulkInPipe;
     UCHAR bulkOutPipe;
     HANDLE txEvent;     /* pre-allocated event for timed overlapped writes */
+    CRITICAL_SECTION txLock;
+    bool txLockInit;
 
     candle_device_config_t dconf;
     candle_capability_t bt_const;

@@ -77,16 +77,18 @@ namespace GsCan.View.Tests
             var portB = new FakeGsCanPort();
             var sessionB = new ViewSession(portB, runBackgroundPumps: false, clock: clockB, configStore: store);
 
-            Assert.True(sessionB.TxSlots[0].Enabled);
+            Assert.False(sessionB.TxSlots[0].Enabled);
+            Assert.Equal(0x123u, sessionB.TxSlots[0].Id);
+            Assert.Equal(10, sessionB.TxSlots[0].PeriodMs);
             Assert.Null(sessionB.OpenedPath);
             Assert.Equal(0, portB.OpenCallCount);
 
             sessionB.Open(info);
+            sessionB.StartChannel(0);
             clockB.Advance(System.TimeSpan.FromMilliseconds(50));
             Assert.Empty(portB.LastOpenedDevice!.Sent);
-            Assert.False(sessionB.Channels[0].IsRunning);
 
-            sessionB.StartChannel(0);
+            sessionB.TxSlots[0].Enabled = true;
             clockB.Advance(System.TimeSpan.FromMilliseconds(10));
             Assert.Single(portB.LastOpenedDevice.Sent);
             Assert.Equal(0x123u, portB.LastOpenedDevice.Sent[0].Frame.Id);

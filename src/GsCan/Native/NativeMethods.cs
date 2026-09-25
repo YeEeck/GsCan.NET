@@ -104,6 +104,7 @@ namespace GsCan.Native
         public const byte CANDLE_FRAME_FLAG_BRS = 0x04;
         public const byte CANDLE_FRAME_FLAG_ESI = 0x08;
 
+        public const int CANDLE_ERR_OK = 0;
         public const int CANDLE_ERR_READ_TIMEOUT = 15;
 
         public const uint EchoIdReceive = 0xFFFFFFFFu;

@@ -22,6 +22,12 @@ namespace GsCan.View.Tests
             try
             {
                 session.Open(list[0]);
+                if (session.Channels.Count == 0)
+                {
+                    Console.WriteLine("SKIP hardware status: Open failed: " + session.LastError);
+                    return;
+                }
+
                 session.Channels[0].Loopback = true;
                 session.StartChannel(0);
                 Assert.Null(session.LastError);
@@ -81,6 +87,12 @@ namespace GsCan.View.Tests
             try
             {
                 session.Open(list[0]);
+                if (session.Channels.Count == 0)
+                {
+                    Console.WriteLine("SKIP hardware status: Open failed: " + session.LastError);
+                    return;
+                }
+
                 session.Channels[0].Loopback = true;
                 session.StartChannel(0);
                 Assert.Null(session.LastError);

@@ -208,10 +208,18 @@ namespace GsCan
                 native.SetDataBytes(data, data.Length);
 
                 IntPtr handle = Device.Handle;
-                if (!NativeMethods.candle_frame_send(handle, checked((byte)Index), ref native))
+                Device.EnterSend();
+                try
                 {
-                    int err = NativeMethods.candle_dev_last_error(handle);
-                    throw new GsCanException("Failed to send CAN frame (native error " + err + ").");
+                    if (!NativeMethods.candle_frame_send(handle, checked((byte)Index), ref native))
+                    {
+                        int err = NativeMethods.candle_dev_last_error(handle);
+                        throw new GsCanException("Failed to send CAN frame (native error " + err + ").");
+                    }
+                }
+                finally
+                {
+                    Device.ExitSend();
                 }
             }
             finally
@@ -257,10 +265,18 @@ namespace GsCan
             native.SetDataBytes(data, data.Length);
 
             IntPtr handle = Device.Handle;
-            if (!NativeMethods.candle_fd_frame_send(handle, checked((byte)Index), ref native))
+            Device.EnterSend();
+            try
             {
-                int err = NativeMethods.candle_dev_last_error(handle);
-                throw new GsCanException("Failed to send CAN FD frame (native error " + err + ").");
+                if (!NativeMethods.candle_fd_frame_send(handle, checked((byte)Index), ref native))
+                {
+                    int err = NativeMethods.candle_dev_last_error(handle);
+                    throw new GsCanException("Failed to send CAN FD frame (native error " + err + ").");
+                }
+            }
+            finally
+            {
+                Device.ExitSend();
             }
         }
 

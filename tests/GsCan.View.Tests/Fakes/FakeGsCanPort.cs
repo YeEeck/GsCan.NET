@@ -77,6 +77,7 @@ namespace GsCan.View.Tests.Fakes
         public Dictionary<int, ChannelOptions> LastStartOptions { get; } = new Dictionary<int, ChannelOptions>();
         public Exception? StartException { get; set; }
         public Exception? TryReadException { get; set; }
+        public Exception? SendException { get; set; }
 
         /// <summary>
         /// When true, Stop of any channel cancels in-flight TryRead on every
@@ -149,6 +150,11 @@ namespace GsCan.View.Tests.Fakes
             if (_listenOnly[channelIndex])
             {
                 throw new GsCanException("Cannot send on a listen-only channel.");
+            }
+
+            if (SendException != null)
+            {
+                throw SendException;
             }
 
             lock (_sent)

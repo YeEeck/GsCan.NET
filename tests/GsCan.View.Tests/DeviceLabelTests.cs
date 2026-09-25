@@ -36,5 +36,14 @@ namespace GsCan.View.Tests
             Assert.Equal("a", DeviceLabel.Detail(info));
             Assert.Equal("1 路通道", DeviceLabel.ChannelText(info));
         }
+
+        [Fact]
+        public void Summary_omits_channel_count_when_unknown()
+        {
+            var path = @"\\?\usb#vid_1d50&pid_606f&mi_00#7&328fb755&0&0000#{c15b4308-04d3-11e6-b3ea-6057189e6443}";
+            var info = new DeviceInfo(path, 0);
+
+            Assert.Equal("gs_usb · 1D50:606F · 328fb755", DeviceLabel.Summary(info));
+        }
     }
 }

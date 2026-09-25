@@ -10,9 +10,15 @@ namespace GsCan
         private IntPtr _handle;
         private bool _disposed;
         private readonly ReaderWriterLockSlim _lifecycleLock = new ReaderWriterLockSlim();
+        // candle.dll reuses one overlapped txEvent per device. Concurrent
+        // WinUsb_WritePipe on that event fails with CANDLE_ERR_SEND_FRAME (14).
+        private readonly object _sendLock = new object();
         private readonly DeviceReadMux _mux;
         private readonly bool[] _channelStarted;
         private readonly int[] _readCancelEpoch;
+        private static readonly object ChannelCountCacheLock = new object();
+        private static readonly Dictionary<string, int> ChannelCountByPath =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
         private Device(IntPtr handle, Channel[] channels)
         {
@@ -59,6 +65,16 @@ namespace GsCan
             _lifecycleLock.ExitReadLock();
         }
 
+        internal void EnterSend()
+        {
+            Monitor.Enter(_sendLock);
+        }
+
+        internal void ExitSend()
+        {
+            Monitor.Exit(_sendLock);
+        }
+
         internal void EnterLifecycle()
         {
             _lifecycleLock.EnterWriteLock();
@@ -84,6 +100,16 @@ namespace GsCan
         internal bool IsChannelStarted(int channelIndex)
         {
             return _channelStarted[channelIndex];
+        }
+
+        /// <summary>
+        /// candle.dll keeps one last_error per device. A concurrent Send can
+        /// overwrite READ_TIMEOUT (15) with OK (0) before TryRead reads it.
+        /// </summary>
+        internal static bool NativeReadErrorIsTimeout(int err)
+        {
+            return err == NativeMethods.CANDLE_ERR_READ_TIMEOUT
+                || err == NativeMethods.CANDLE_ERR_OK;
         }
 
         /// <summary>
@@ -135,7 +161,7 @@ namespace GsCan
             if (!NativeMethods.candle_fd_frame_read(_handle, out native, (uint)timeoutMilliseconds))
             {
                 int err = NativeMethods.candle_dev_last_error(_handle);
-                if (err == NativeMethods.CANDLE_ERR_READ_TIMEOUT)
+                if (NativeReadErrorIsTimeout(err))
                 {
                     frame = default;
                     channel = -1;
@@ -285,6 +311,8 @@ namespace GsCan
                     throw new GsCanException("Failed to read channel count.");
                 }
 
+                RememberChannelCount(info.Path, channelCount);
+
                 var channels = new Channel[channelCount];
                 var device = new Device(handle, channels);
                 handle = IntPtr.Zero;
@@ -327,31 +355,40 @@ namespace GsCan
                     return false;
                 }
 
-                // dconf (channel count) is filled only after open.
-                if (!NativeMethods.candle_dev_open(hdev))
-                {
-                    return false;
-                }
-
-                try
-                {
-                    if (!NativeMethods.candle_channel_count(hdev, out var count) || count == 0)
-                    {
-                        return false;
-                    }
-
-                    info = new DeviceInfo(path, count);
-                    return true;
-                }
-                finally
-                {
-                    NativeMethods.candle_dev_close(hdev);
-                }
+                info = new DeviceInfo(path, CachedChannelCount(path));
+                return true;
             }
             finally
             {
                 NativeMethods.candle_dev_free(hdev);
             }
+        }
+
+        private static void RememberChannelCount(string path, int channelCount)
+        {
+            if (string.IsNullOrEmpty(path) || channelCount <= 0)
+            {
+                return;
+            }
+
+            lock (ChannelCountCacheLock)
+            {
+                ChannelCountByPath[path] = channelCount;
+            }
+        }
+
+        private static int CachedChannelCount(string path)
+        {
+            lock (ChannelCountCacheLock)
+            {
+                int count;
+                if (ChannelCountByPath.TryGetValue(path, out count))
+                {
+                    return count;
+                }
+            }
+
+            return 0;
         }
 
         public void Dispose()

@@ -100,79 +100,91 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="session:ChannelState">
                             <Border Classes="channel-card">
-                                <Grid ColumnDefinitions="3,*">
-                                    <Border Background="{DynamicResource AccentFillColorDefaultBrush}"
-                                            IsVisible="{Binding IsRunning}" />
-                                    <WrapPanel Grid.Column="1" Margin="10,8">
-                                        <Border Classes="badge"
-                                                Margin="0,0,8,4"
-                                                Background="{Binding Index, Converter={StaticResource ChannelBrush}}">
-                                            <TextBlock Text="{Binding Index, StringFormat='CH {0}'}" />
+                                <Grid ColumnDefinitions="4,*">
+                                    <Border Background="{Binding Index, Converter={StaticResource ChannelBrush}}" />
+                                    <WrapPanel Grid.Column="1" Classes="channel-row">
+                                        <Border Classes="channel-group first">
+                                            <StackPanel>
+                                                <Border Classes="badge"
+                                                        Background="{Binding Index, Converter={StaticResource ChannelBrush}}">
+                                                    <TextBlock Text="{Binding Index, StringFormat='CH {0}'}" />
+                                                </Border>
+                                                <Border Classes="pill run" IsVisible="{Binding IsRunning}">
+                                                    <TextBlock Text="运行" />
+                                                </Border>
+                                                <Border Classes="pill stop" IsVisible="{Binding !IsRunning}">
+                                                    <TextBlock Text="停止" />
+                                                </Border>
+                                            </StackPanel>
                                         </Border>
-                                        <Border Classes="pill run" Margin="0,0,8,4" IsVisible="{Binding IsRunning}">
-                                            <TextBlock Text="运行" />
+                                        <Border Classes="channel-group">
+                                            <StackPanel>
+                                                <Button Classes="compact accent"
+                                                        Command="{Binding Start}"
+                                                        Content="启动"
+                                                        IsEnabled="{Binding !IsRunning}" />
+                                                <Button Classes="compact"
+                                                        Command="{Binding Stop}"
+                                                        Content="停止" />
+                                            </StackPanel>
                                         </Border>
-                                        <Border Classes="pill stop" Margin="0,0,8,4" IsVisible="{Binding !IsRunning}">
-                                            <TextBlock Text="停止" />
+                                        <Border Classes="channel-group">
+                                            <StackPanel>
+                                                <TextBlock Classes="filter-label" Text="仲裁" />
+                                                <ComboBox Classes="cell"
+                                                          Width="110"
+                                                          HorizontalAlignment="Left"
+                                                          HorizontalContentAlignment="Left"
+                                                          ItemsSource="{x:Static session:ChannelState.ArbitrationBitrates}"
+                                                          SelectedItem="{Binding Bitrate}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="sys:Int32">
+                                                            <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <CheckBox Classes="compact"
+                                                          Content="FD"
+                                                          IsChecked="{Binding FdEnabled}" />
+                                                <StackPanel Orientation="Horizontal"
+                                                            Spacing="8"
+                                                            VerticalAlignment="Center"
+                                                            IsVisible="{Binding FdEnabled}">
+                                                    <TextBlock Classes="filter-label" Text="数据段" />
+                                                    <ComboBox Classes="cell"
+                                                              Width="90"
+                                                              HorizontalAlignment="Left"
+                                                              HorizontalContentAlignment="Left"
+                                                              ItemsSource="{x:Static session:ChannelState.DataBitrates}"
+                                                              SelectedItem="{Binding DataBitrate}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="sys:Int32">
+                                                                <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                </StackPanel>
+                                            </StackPanel>
                                         </Border>
-                                        <Button Classes="compact accent"
-                                                Margin="0,0,6,4"
-                                                Command="{Binding Start}"
-                                                Content="启动"
-                                                IsEnabled="{Binding !IsRunning}" />
-                                        <Button Classes="compact"
-                                                Margin="0,0,14,4"
-                                                Command="{Binding Stop}"
-                                                Content="停止" />
-                                        <TextBlock Classes="filter-label"
-                                                   Margin="0,0,6,4"
-                                                   VerticalAlignment="Center"
-                                                   Text="仲裁" />
-                                        <ComboBox Width="110"
-                                                  Margin="0,0,12,4"
-                                                  VerticalAlignment="Center"
-                                                  ItemsSource="{x:Static session:ChannelState.ArbitrationBitrates}"
-                                                  SelectedItem="{Binding Bitrate}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate x:DataType="sys:Int32">
-                                                    <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-                                        <CheckBox Classes="compact"
-                                                  Margin="0,0,10,4"
-                                                  Content="FD"
-                                                  IsChecked="{Binding FdEnabled}" />
-                                        <StackPanel Margin="0,0,10,4"
-                                                    Orientation="Horizontal"
-                                                    Spacing="6"
-                                                    IsVisible="{Binding FdEnabled}">
-                                            <TextBlock Classes="filter-label" VerticalAlignment="Center" Text="数据段" />
-                                            <ComboBox Width="90"
-                                                      VerticalAlignment="Center"
-                                                      ItemsSource="{x:Static session:ChannelState.DataBitrates}"
-                                                      SelectedItem="{Binding DataBitrate}">
-                                                <ComboBox.ItemTemplate>
-                                                    <DataTemplate x:DataType="sys:Int32">
-                                                        <TextBlock Text="{Binding Converter={StaticResource BitrateLabel}}" />
-                                                    </DataTemplate>
-                                                </ComboBox.ItemTemplate>
-                                            </ComboBox>
-                                        </StackPanel>
-                                        <CheckBox Classes="compact"
-                                                  Margin="0,0,10,4"
-                                                  Content="只听"
-                                                  IsChecked="{Binding ListenOnly}" />
-                                        <CheckBox Classes="compact"
-                                                  Margin="0,0,10,4"
-                                                  Content="环回"
-                                                  IsChecked="{Binding Loopback}" />
-                                        <Expander Classes="more" Margin="0,0,0,4" Header="更多">
-                                            <CheckBox Classes="compact"
-                                                      Margin="8,4,0,0"
-                                                      Content="OneShot"
-                                                      IsChecked="{Binding OneShot}" />
-                                        </Expander>
+                                        <Border Classes="channel-group">
+                                            <StackPanel>
+                                                <CheckBox Classes="compact"
+                                                          Content="只听"
+                                                          IsChecked="{Binding ListenOnly}" />
+                                                <CheckBox Classes="compact"
+                                                          Content="环回"
+                                                          IsChecked="{Binding Loopback}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Classes="channel-group">
+                                            <StackPanel>
+                                                <Expander Classes="more" Header="更多">
+                                                    <CheckBox Classes="compact"
+                                                              Content="OneShot"
+                                                              IsChecked="{Binding OneShot}" />
+                                                </Expander>
+                                            </StackPanel>
+                                        </Border>
                                     </WrapPanel>
                                 </Grid>
                             </Border>

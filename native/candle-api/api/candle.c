@@ -104,14 +104,10 @@ static bool candle_read_di(HDEVINFO hdi, SP_DEVICE_INTERFACE_DATA interfaceData,
         return false;
     }
 
-    /* try to open to read device infos and see if it is avail */
-    if (candle_dev_interal_open(dev)) {
-        dev->state = CANDLE_DEVSTATE_AVAIL;
-        candle_dev_close(dev);
-    } else {
-        dev->state = CANDLE_DEVSTATE_INUSE;
-    }
-
+    /* Enumerate path only. Opening here (host_format + get_config) can stall
+     * EP0; a failed scan then looks like the adapter fell off the bus until
+     * unplug. dconf / channel count are filled by candle_dev_open. */
+    dev->state = CANDLE_DEVSTATE_AVAIL;
     dev->last_error = CANDLE_ERR_OK;
     return true;
 }
@@ -385,6 +381,8 @@ static bool candle_dev_interal_open(candle_handle hdev)
     memset(dev->rxevents, 0, sizeof(dev->rxevents));
     memset(dev->rxurbs, 0, sizeof(dev->rxurbs));
 
+    /* WinUSB device paths typically require share flags; exclusive CreateFile
+     * fails even when nothing else holds the handle, so List returns empty. */
     dev->deviceHandle = CreateFile(
         dev->path,
         GENERIC_WRITE | GENERIC_READ,
@@ -505,13 +503,15 @@ static bool candle_dev_interal_open(candle_handle hdev)
     }
 
     /* Pre-allocate a manual-reset event for timed overlapped writes.  Reusing
-     * one event per device (writes are serialised by writeMutex) avoids
+     * one event per device (writes are serialised by txLock) avoids
      * per-frame CreateEvent overhead at high CAN frame rates. */
     dev->txEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!dev->txEvent) {
         dev->last_error = CANDLE_ERR_MALLOC;
         goto winusb_free;
     }
+    InitializeCriticalSection(&dev->txLock);
+    dev->txLockInit = true;
 
     dev->last_error = CANDLE_ERR_OK;
     return true;
@@ -573,7 +573,17 @@ static bool candle_prepare_read(candle_device_t *dev, unsigned urb_num)
 
 static bool candle_close_rxurbs(candle_device_t *dev)
 {
-    if (dev->winUSBHandle != NULL) {
+    bool any_pending = false;
+    for (unsigned i=0; i<CANDLE_URB_COUNT; i++) {
+        if (dev->rxurbs[i].pending) {
+            any_pending = true;
+            break;
+        }
+    }
+
+    /* List/scan opens without submitting URBs. AbortPipe on an idle IN
+     * endpoint can leave some gs_usb firmware off the bus until unplug. */
+    if (any_pending && dev->winUSBHandle != NULL) {
         WinUsb_AbortPipe(dev->winUSBHandle, dev->bulkInPipe);
     }
 
@@ -605,6 +615,11 @@ static void candle_release_open_handles(candle_device_t *dev)
     if (dev->txEvent) {
         CloseHandle(dev->txEvent);
         dev->txEvent = NULL;
+    }
+
+    if (dev->txLockInit) {
+        DeleteCriticalSection(&dev->txLock);
+        dev->txLockInit = false;
     }
 
     if (dev->winUSBHandle) {
@@ -812,9 +827,9 @@ DLL bool __stdcall candle_channel_stop(candle_handle hdev, uint8_t ch)
     return candle_ctrl_set_device_mode(dev, ch, CANDLE_DEVMODE_RESET, 0);
 }
 
-/* Write len bytes from buf to the OUT pipe, aborting after 300 ms.
- * Writes are serialised by writeMutex in CandleApiInterface so dev->txEvent
- * is never accessed by two threads simultaneously. */
+/* Write len bytes from buf to the OUT pipe, aborting after 150 ms.
+ * Caller must hold txLock: dev->txEvent is shared and must not be used by
+ * two threads simultaneously. */
 static bool candle_write_pipe_timed(candle_device_t *dev, uint8_t *buf, DWORD len)
 {
     OVERLAPPED ovl;
@@ -849,8 +864,10 @@ DLL bool __stdcall candle_frame_send(candle_handle hdev, uint8_t ch, candle_fram
     candle_device_t *dev = (candle_device_t*)hdev;
     frame->echo_id = 0;
     frame->channel = ch;
+    EnterCriticalSection(&dev->txLock);
     bool rc = candle_write_pipe_timed(dev, (uint8_t*)frame, sizeof(*frame));
     dev->last_error = rc ? CANDLE_ERR_OK : CANDLE_ERR_SEND_FRAME;
+    LeaveCriticalSection(&dev->txLock);
     return rc;
 }
 
@@ -969,8 +986,10 @@ DLL bool __stdcall candle_fd_frame_send(candle_handle hdev, uint8_t ch, candle_f
     candle_device_t *dev = (candle_device_t*)hdev;
     frame->echo_id = 0;
     frame->channel = ch;
+    EnterCriticalSection(&dev->txLock);
     bool rc = candle_write_pipe_timed(dev, (uint8_t*)frame, sizeof(*frame));
     dev->last_error = rc ? CANDLE_ERR_OK : CANDLE_ERR_SEND_FRAME;
+    LeaveCriticalSection(&dev->txLock);
     return rc;
 }
 

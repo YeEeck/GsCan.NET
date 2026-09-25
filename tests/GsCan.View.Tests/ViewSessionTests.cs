@@ -125,6 +125,24 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
+        public void RefreshDevices_does_not_List_while_a_Device_is_open()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            port.Devices.Add(info);
+            var session = new ViewSession(port);
+            session.RefreshDevices();
+            session.Open(info);
+            int listsAfterOpen = port.ListCallCount;
+
+            session.RefreshDevices();
+
+            Assert.Equal(listsAfterOpen, port.ListCallCount);
+            Assert.Single(session.DeviceList);
+            Assert.Equal(info.Path, session.DeviceList[0].Path);
+        }
+
+        [Fact]
         public void Open_sets_OpenedPath_and_creates_stopped_Channels()
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);
