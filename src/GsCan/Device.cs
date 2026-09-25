@@ -16,6 +16,7 @@ namespace GsCan
         private readonly DeviceReadMux _mux;
         private readonly bool[] _channelStarted;
         private readonly int[] _readCancelEpoch;
+        private int _consecutiveRetryableReadErrors;
         private static readonly object ChannelCountCacheLock = new object();
         private static readonly Dictionary<string, int> ChannelCountByPath =
             new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -102,6 +103,8 @@ namespace GsCan
             return _channelStarted[channelIndex];
         }
 
+        internal const int MaxConsecutiveRetryableReadErrors = 3;
+
         /// <summary>
         /// candle.dll keeps one last_error per device. A concurrent Send can
         /// overwrite READ_TIMEOUT (15) with OK (0) before TryRead reads it.
@@ -110,6 +113,37 @@ namespace GsCan
         {
             return err == NativeMethods.CANDLE_ERR_READ_TIMEOUT
                 || err == NativeMethods.CANDLE_ERR_OK;
+        }
+
+        /// <summary>
+        /// READ_RESULT (17) / READ_SIZE (18) after a resubmitted URB. One
+        /// channel Stop can glitch the shared USB IN this way; a burst is unplug.
+        /// </summary>
+        internal static bool NativeReadErrorIsRetryable(int err)
+        {
+            return err == NativeMethods.CANDLE_ERR_READ_RESULT
+                || err == NativeMethods.CANDLE_ERR_READ_SIZE;
+        }
+
+        internal static bool NativeFailedReadIsRecoverable(int err, ref int consecutiveRetryable)
+        {
+            if (NativeReadErrorIsTimeout(err))
+            {
+                consecutiveRetryable = 0;
+                return true;
+            }
+
+            if (NativeReadErrorIsRetryable(err))
+            {
+                consecutiveRetryable++;
+                if (consecutiveRetryable < MaxConsecutiveRetryableReadErrors)
+                {
+                    return true;
+                }
+            }
+
+            consecutiveRetryable = 0;
+            return false;
         }
 
         /// <summary>
@@ -161,7 +195,7 @@ namespace GsCan
             if (!NativeMethods.candle_fd_frame_read(_handle, out native, (uint)timeoutMilliseconds))
             {
                 int err = NativeMethods.candle_dev_last_error(_handle);
-                if (NativeReadErrorIsTimeout(err))
+                if (NativeFailedReadIsRecoverable(err, ref _consecutiveRetryableReadErrors))
                 {
                     frame = default;
                     channel = -1;
@@ -171,6 +205,7 @@ namespace GsCan
                 throw new GsCanException("Failed to read CAN frame (native error " + err + ").");
             }
 
+            _consecutiveRetryableReadErrors = 0;
             frame = ConvertNativeFdFrame(ref native);
             channel = native.channel;
             return true;

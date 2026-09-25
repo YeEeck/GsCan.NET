@@ -14,6 +14,39 @@ namespace GsCan.Tests
                 "native error 0 after a failed read is Send overwriting last_error, not a fatal USB error");
             Assert.True(Device.NativeReadErrorIsTimeout(15));
             Assert.False(Device.NativeReadErrorIsTimeout(17));
+            Assert.False(Device.NativeReadErrorIsTimeout(18));
+            Assert.False(Device.NativeReadErrorIsTimeout(9));
+            Assert.False(Device.NativeReadErrorIsTimeout(16));
+        }
+
+        [Fact]
+        public void Read_result_and_size_are_retryable_until_they_burst()
+        {
+            Assert.True(Device.NativeReadErrorIsRetryable(17));
+            Assert.True(Device.NativeReadErrorIsRetryable(18));
+            Assert.False(Device.NativeReadErrorIsRetryable(9));
+            Assert.False(Device.NativeReadErrorIsRetryable(15));
+            Assert.False(Device.NativeReadErrorIsRetryable(16));
+
+            int consecutive = 0;
+            Assert.True(Device.NativeFailedReadIsRecoverable(17, ref consecutive));
+            Assert.Equal(1, consecutive);
+            Assert.True(Device.NativeFailedReadIsRecoverable(18, ref consecutive));
+            Assert.Equal(2, consecutive);
+            Assert.False(Device.NativeFailedReadIsRecoverable(17, ref consecutive));
+            Assert.Equal(0, consecutive);
+
+            consecutive = 0;
+            Assert.True(Device.NativeFailedReadIsRecoverable(17, ref consecutive));
+            Assert.True(Device.NativeFailedReadIsRecoverable(15, ref consecutive));
+            Assert.Equal(0, consecutive);
+            Assert.True(Device.NativeFailedReadIsRecoverable(17, ref consecutive));
+            Assert.Equal(1, consecutive);
+
+            consecutive = 0;
+            Assert.False(Device.NativeFailedReadIsRecoverable(9, ref consecutive));
+            Assert.Equal(0, consecutive);
+            Assert.False(Device.NativeFailedReadIsRecoverable(16, ref consecutive));
         }
 
         [Fact]

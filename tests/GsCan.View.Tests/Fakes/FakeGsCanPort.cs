@@ -55,6 +55,7 @@ namespace GsCan.View.Tests.Fakes
         private readonly AutoResetEvent[] _rxSignals;
         private readonly bool[] _started;
         private readonly bool[] _listenOnly;
+        private readonly int[] _nativeGlitchRemaining;
         private readonly List<(int Channel, CanFrame Frame)> _sent = new List<(int, CanFrame)>();
         private int _readCancelEpoch;
 
@@ -67,6 +68,7 @@ namespace GsCan.View.Tests.Fakes
             _rxSignals = new AutoResetEvent[channelCount];
             _started = new bool[channelCount];
             _listenOnly = new bool[channelCount];
+            _nativeGlitchRemaining = new int[channelCount];
             for (int i = 0; i < channelCount; i++)
             {
                 _rx[i] = new ConcurrentQueue<CanFrame>();
@@ -91,6 +93,19 @@ namespace GsCan.View.Tests.Fakes
         /// View must not treat as unplug.
         /// </summary>
         public bool SimulateDeviceWideReadCancel { get; set; }
+
+        /// <summary>
+        /// When true, Stop of one channel makes the next TryRead on every other
+        /// started channel throw native error 17 once — a recovered USB IN
+        /// glitch View must not treat as unplug.
+        /// </summary>
+        public bool SimulateNativeReadGlitchOnStop { get; set; }
+
+        /// <summary>
+        /// When true, Stop of one channel makes every later TryRead on other
+        /// started channels throw native error 17 — unplug-shaped, must Close.
+        /// </summary>
+        public bool SimulatePersistentNativeReadErrorOnStop { get; set; }
 
         public IReadOnlyList<(int Channel, CanFrame Frame)> Sent
         {
@@ -132,7 +147,21 @@ namespace GsCan.View.Tests.Fakes
             {
             }
 
-            if (SimulateDeviceWideReadCancel)
+            if (SimulateNativeReadGlitchOnStop || SimulatePersistentNativeReadErrorOnStop)
+            {
+                int remaining = SimulatePersistentNativeReadErrorOnStop ? int.MaxValue : 1;
+                for (int i = 0; i < _started.Length; i++)
+                {
+                    if (i != channelIndex && _started[i])
+                    {
+                        _nativeGlitchRemaining[i] = remaining;
+                    }
+                }
+            }
+
+            if (SimulateDeviceWideReadCancel
+                || SimulateNativeReadGlitchOnStop
+                || SimulatePersistentNativeReadErrorOnStop)
             {
                 Interlocked.Increment(ref _readCancelEpoch);
                 for (int i = 0; i < _rxSignals.Length; i++)
@@ -210,6 +239,16 @@ namespace GsCan.View.Tests.Fakes
 
         private void ThrowIfUnreadable(int channelIndex, int epoch)
         {
+            int glitch;
+            while ((glitch = Volatile.Read(ref _nativeGlitchRemaining[channelIndex])) > 0)
+            {
+                int next = glitch == int.MaxValue ? int.MaxValue : glitch - 1;
+                if (Interlocked.CompareExchange(ref _nativeGlitchRemaining[channelIndex], next, glitch) == glitch)
+                {
+                    throw new GsCanException("Failed to read CAN frame (native error 17).");
+                }
+            }
+
             if (!_started[channelIndex]
                 || (SimulateDeviceWideReadCancel
                     && Volatile.Read(ref _readCancelEpoch) != epoch))

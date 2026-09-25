@@ -442,7 +442,10 @@ namespace GsCan.View.Session
 
             DisableCyclicOnChannel(index);
             StopPump(index);
-            Channels[index].IsRunning = false;
+            if (index < Channels.Count)
+            {
+                Channels[index].IsRunning = false;
+            }
         }
 
         public void Close()

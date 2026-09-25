@@ -571,6 +571,18 @@ static bool candle_prepare_read(candle_device_t *dev, unsigned urb_num)
     return false;
 }
 
+/* URB completed unusable (error or short packet). Resubmit: caller sees
+ * READ_TIMEOUT. Dead pipe: keep PREPARE_READ so the host can unplug. */
+static bool candle_recycle_urb_as_timeout(candle_device_t *dev, unsigned urb_num)
+{
+    if (!candle_prepare_read(dev, urb_num)) {
+        return false;
+    }
+
+    dev->last_error = CANDLE_ERR_READ_TIMEOUT;
+    return false;
+}
+
 static bool candle_close_rxurbs(candle_device_t *dev)
 {
     bool any_pending = false;
@@ -894,24 +906,22 @@ DLL bool __stdcall candle_frame_read(candle_handle hdev, candle_frame_t *frame, 
         DWORD err = GetLastError();
         if (err == ERROR_IO_INCOMPLETE) {
             ResetEvent(dev->rxurbs[urb_num].ovl.hEvent);
-        } else {
-            dev->rxurbs[urb_num].pending = false;
-            candle_prepare_read(dev, urb_num);
+            dev->last_error = CANDLE_ERR_READ_TIMEOUT;
+            return false;
         }
+
+        dev->rxurbs[urb_num].pending = false;
         candle_logf(L"classic read result failed urb=%u winerr=%lu", urb_num, err);
-        dev->last_error = CANDLE_ERR_READ_RESULT;
-        return false;
+        return candle_recycle_urb_as_timeout(dev, urb_num);
     }
     dev->rxurbs[urb_num].pending = false;
 
     if (bytes_transfered < sizeof(*frame)-4) {
-        candle_prepare_read(dev, urb_num);
         candle_logf(L"classic read too small urb=%u bytes=%lu min=%u",
                     urb_num,
                     bytes_transfered,
                     (unsigned)(sizeof(*frame) - 4));
-        dev->last_error = CANDLE_ERR_READ_SIZE;
-        return false;
+        return candle_recycle_urb_as_timeout(dev, urb_num);
     }
 
     memset(frame, 0, sizeof(*frame));
@@ -1015,26 +1025,24 @@ DLL bool __stdcall candle_fd_frame_read(candle_handle hdev, candle_fd_frame_t *f
         DWORD err = GetLastError();
         if (err == ERROR_IO_INCOMPLETE) {
             ResetEvent(dev->rxurbs[urb_num].ovl.hEvent);
-        } else {
-            dev->rxurbs[urb_num].pending = false;
-            candle_prepare_read(dev, urb_num);
+            dev->last_error = CANDLE_ERR_READ_TIMEOUT;
+            return false;
         }
+
+        dev->rxurbs[urb_num].pending = false;
         candle_logf(L"fd read result failed urb=%u winerr=%lu", urb_num, err);
-        dev->last_error = CANDLE_ERR_READ_RESULT;
-        return false;
+        return candle_recycle_urb_as_timeout(dev, urb_num);
     }
     dev->rxurbs[urb_num].pending = false;
 
     /* Minimum: classic CAN header (12 bytes) + at least 8 data bytes = 20 bytes */
     static const DWORD classic_min = sizeof(candle_frame_t) - 4;
     if (bytes_transfered < classic_min) {
-        candle_prepare_read(dev, urb_num);
         candle_logf(L"fd read too small urb=%u bytes=%lu min=%lu",
                     urb_num,
                     bytes_transfered,
                     classic_min);
-        dev->last_error = CANDLE_ERR_READ_SIZE;
-        return false;
+        return candle_recycle_urb_as_timeout(dev, urb_num);
     }
 
     memset(frame, 0, sizeof(*frame));
@@ -1059,15 +1067,13 @@ DLL bool __stdcall candle_fd_frame_read(candle_handle hdev, candle_fd_frame_t *f
         const DWORD min_size  = 12 + data_len; /* header + data, without timestamp */
 
         if (bytes_transfered < min_size) {
-            candle_prepare_read(dev, urb_num);
             candle_logf(L"fd read FD frame too small urb=%u bytes=%lu min=%lu flags=0x%02x dlc=%u",
                         urb_num,
                         bytes_transfered,
                         min_size,
                         dev->rxurbs[urb_num].buf[10],
                         raw_dlc);
-            dev->last_error = CANDLE_ERR_READ_SIZE;
-            return false;
+            return candle_recycle_urb_as_timeout(dev, urb_num);
         }
 
         /* Copy the fixed 12-byte header (echo_id … reserved). */

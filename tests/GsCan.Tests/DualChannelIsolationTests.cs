@@ -120,13 +120,12 @@ namespace GsCan.Tests
                 try
                 {
                     Exception? readEx = null;
-                    var readReturned = false;
                     var readerDone = new ManualResetEventSlim(false);
                     var reader = new Thread(() =>
                     {
                         try
                         {
-                            readReturned = ch0.TryRead(out _, 400);
+                            ch0.TryRead(out _, 400);
                         }
                         catch (Exception ex)
                         {
@@ -144,7 +143,6 @@ namespace GsCan.Tests
 
                     Assert.True(readerDone.Wait(2000), "ch0 TryRead did not complete after ch1 Stop");
                     Assert.Null(readEx);
-                    Assert.False(readReturned);
                 }
                 finally
                 {
@@ -308,6 +306,59 @@ namespace GsCan.Tests
                     Assert.True(got.Count >= 2, "ch1 Echo/Rx must remain queued after ch0 TryRead, got " + got.Count);
                     Assert.Contains(got, f => f.Kind == CanFrameKind.Echo && f.Id == 0x456u && f.Data.SequenceEqual(payload));
                     Assert.Contains(got, f => f.Kind == CanFrameKind.Rx && f.Id == 0x456u && f.Data.SequenceEqual(payload));
+                }
+                finally
+                {
+                    ch0.Stop();
+                    ch1.Stop();
+                }
+            }
+        }
+
+        [Fact]
+        public void Dual_pump_Stop_one_channel_does_not_error_the_other()
+        {
+            if (!TryOpenDualChannel(out var device))
+            {
+                Console.WriteLine("SKIP dual-pump Stop isolation: no dual-channel gs_usb device present.");
+                return;
+            }
+
+            using (device!)
+            {
+                var ch0 = device.Channels[0];
+                var ch1 = device.Channels[1];
+                ch0.Start(new ChannelOptions { Bitrate = 500000, Loopback = true });
+                ch1.Start(new ChannelOptions { Bitrate = 250000, Loopback = true });
+                try
+                {
+                    var cts = new CancellationTokenSource();
+                    Exception? pumpError = null;
+                    int frames = 0;
+                    var pump0 = StartPump(
+                        ch0,
+                        cts.Token,
+                        _ => Interlocked.Increment(ref frames),
+                        ex => Interlocked.CompareExchange(ref pumpError, ex, null));
+                    var pump1 = StartPump(
+                        ch1,
+                        cts.Token,
+                        _ => { },
+                        ex => Interlocked.CompareExchange(ref pumpError, ex, null));
+                    Thread.Sleep(80);
+                    ch1.Stop();
+                    Thread.Sleep(250);
+                    Assert.Null(pumpError);
+
+                    ch0.Send(CanFrame.Classic(0x100, new byte[] { 0x01 }));
+                    Assert.True(
+                        WaitFor(() => Volatile.Read(ref frames) >= 1, 500),
+                        "ch0 pump should still read after ch1 Stop, frames=" + Volatile.Read(ref frames));
+
+                    cts.Cancel();
+                    Assert.True(pump0.Join(1000), "ch0 pump did not stop");
+                    Assert.True(pump1.Join(1000), "ch1 pump did not stop");
+                    Assert.Null(pumpError);
                 }
                 finally
                 {

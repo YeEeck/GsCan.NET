@@ -217,6 +217,64 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
+        public void StopChannel_with_pumps_does_not_close_device_when_peer_read_hits_native_error_17()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port, runBackgroundPumps: true);
+            session.Open(info);
+            var opened = port.LastOpenedDevice!;
+            opened.SimulateNativeReadGlitchOnStop = true;
+            try
+            {
+                session.StartChannel(0);
+                session.StartChannel(1);
+
+                session.StopChannel(0);
+                Thread.Sleep(250);
+
+                Assert.Equal(@"\\?\usb#a", session.OpenedPath);
+                Assert.Equal(2, session.Channels.Count);
+                Assert.False(session.Channels[0].IsRunning);
+                Assert.True(session.Channels[1].IsRunning);
+                Assert.Equal(0, port.DisposeCallCount);
+                Assert.Null(session.LastError);
+            }
+            finally
+            {
+                session.Close();
+            }
+        }
+
+        [Fact]
+        public void StopChannel_with_pumps_closes_device_when_peer_read_keeps_returning_native_error_17()
+        {
+            var info = new DeviceInfo(@"\\?\usb#a", 2);
+            var port = new FakeGsCanPort();
+            var session = new ViewSession(port, runBackgroundPumps: true);
+            session.Open(info);
+            var opened = port.LastOpenedDevice!;
+            opened.SimulatePersistentNativeReadErrorOnStop = true;
+            try
+            {
+                session.StartChannel(0);
+                session.StartChannel(1);
+
+                session.StopChannel(0);
+                Thread.Sleep(250);
+
+                Assert.Null(session.OpenedPath);
+                Assert.Empty(session.Channels);
+                Assert.Equal(1, port.DisposeCallCount);
+                Assert.Equal("Failed to read CAN frame (native error 17).", session.LastError);
+            }
+            finally
+            {
+                session.Close();
+            }
+        }
+
+        [Fact]
         public void StopChannel_then_StartChannel_with_pumps_does_not_close_the_device()
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);
