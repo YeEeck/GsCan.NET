@@ -32,7 +32,7 @@ flowchart LR
 - **公共 API 面很小** —— 只需掌握 `Device` / `Channel` / `CanFrame`，公共命名里不会出现 candle 相关词汇。
 - **经典 CAN 与 CAN FD** —— 不设置 `DataBitrate` 即为经典 CAN；设置后（1M / 2M / 4M）为 FD，可发送 64 字节帧。
 - **多 Channel** —— 一个 Device 带 N 路 Channel（FlintCAN-FD 为两路），USB IN 端点的分路由库内部完成。
-- **发送不阻塞、读取带超时** —— `Send` 立即返回；`TryRead` 超时返回 `false`，不抛异常。
+- **发送不阻塞、读取带超时** —— `Send` 立即返回；`TryRead` 超时返回 `false`，不抛异常。本路 `Stop` 解开正在阻塞的 `TryRead` 时同样返回 `false`。
 - **只有一种帧类型** —— Rx、Echo、Error 都是 `CanFrameKind` 的取值，而不是额外的类；Overflow 是所在帧上的一个标志位。
 - **硬件时间戳** —— 适配器支持时，通过 `CanFrame.TimestampMicroseconds` 提供。
 - **ListenOnly / Loopback / OneShot** —— 均在 `ChannelOptions` 上设置。
@@ -109,7 +109,7 @@ ch.Stop();                            // 返回 void，不抛异常
 | `Kind = Echo` | 对应的 `Send` **已在设备上完成**，并不代表该帧赢得了仲裁。同一 Channel 上，Echo 的到达顺序与 `Send` 的调用顺序一致。 |
 | `Overflow = true` | 在这一帧之前，设备丢弃过收到的帧。它是一个标志位，既不是异常，也不是独立类型。 |
 | `Kind = Error` | 总线错误帧（含 bus-off），与数据帧走同一条读取路径。 |
-| `TryRead` 返回 `false` | 读取超时。`Open`、`Start` 以及立即失败的 `Send` 则会抛出 `GsCanException`。 |
+| `TryRead` 返回 `false` | 读取超时，或本路 `Stop` 解开了这次阻塞。`Open`、`Start`、立即失败的 `Send`，以及 Stop 之后再 `TryRead`，则会抛出 `GsCanException`。 |
 
 调用 `Stop` 之后，尚未回 Echo 的 `Send` 不会再有 Echo。如果需要确认帧是否发出，请先读完 Echo 再停止。
 

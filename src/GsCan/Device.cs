@@ -103,13 +103,13 @@ namespace GsCan
             return _channelStarted[channelIndex];
         }
 
-        internal const int MaxConsecutiveRetryableReadErrors = 3;
+        private const int MaxConsecutiveRetryableReadErrors = 3;
 
         /// <summary>
         /// candle.dll keeps one last_error per device. A concurrent Send can
         /// overwrite READ_TIMEOUT (15) with OK (0) before TryRead reads it.
         /// </summary>
-        internal static bool NativeReadErrorIsTimeout(int err)
+        private static bool NativeReadErrorIsTimeout(int err)
         {
             return err == NativeMethods.CANDLE_ERR_READ_TIMEOUT
                 || err == NativeMethods.CANDLE_ERR_OK;
@@ -119,13 +119,13 @@ namespace GsCan
         /// READ_RESULT (17) / READ_SIZE (18) after a resubmitted URB. One
         /// channel Stop can glitch the shared USB IN this way; a burst is unplug.
         /// </summary>
-        internal static bool NativeReadErrorIsRetryable(int err)
+        private static bool NativeReadErrorIsRetryable(int err)
         {
             return err == NativeMethods.CANDLE_ERR_READ_RESULT
                 || err == NativeMethods.CANDLE_ERR_READ_SIZE;
         }
 
-        internal static bool NativeFailedReadIsRecoverable(int err, ref int consecutiveRetryable)
+        private static bool NativeFailedReadIsRecoverable(int err, ref int consecutiveRetryable)
         {
             if (NativeReadErrorIsTimeout(err))
             {
@@ -180,12 +180,6 @@ namespace GsCan
             }
 
             ThrowIfDisposed();
-            if (!IsChannelStarted(channelIndex)
-                || Volatile.Read(ref _readCancelEpoch[channelIndex]) != epoch)
-            {
-                throw new GsCanException("Channel is not started.");
-            }
-
             return false;
         }
 

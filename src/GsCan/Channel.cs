@@ -282,7 +282,9 @@ namespace GsCan
 
         /// <summary>
         /// Tries to read the next frame for this channel (Rx, Echo, or Error).
-        /// Returns false on timeout; does not throw for timeout.
+        /// Returns false on timeout, or when <see cref="Stop"/> unblocks this call.
+        /// Does not throw for timeout or this channel's Stop. A later
+        /// <see cref="TryRead"/> after Stop throws <see cref="GsCanException"/>.
         /// </summary>
         public bool TryRead(out CanFrame frame, int timeoutMilliseconds)
         {

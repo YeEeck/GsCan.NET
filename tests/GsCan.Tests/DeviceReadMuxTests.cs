@@ -9,6 +9,64 @@ namespace GsCan.Tests
     public class DeviceReadMuxTests
     {
         [Fact]
+        public void Cancelled_wait_returns_false()
+        {
+            var mux = new DeviceReadMux(2);
+            var usb = new FakeUsb { BlockUntilPulse = true };
+            var cts = new CancellationTokenSource();
+            bool? got = null;
+            Exception? readEx = null;
+            var done = new ManualResetEventSlim(false);
+            var reader = new Thread(() =>
+            {
+                try
+                {
+                    got = Read(mux, usb, 0, 5000, cts.Token, out _);
+                }
+                catch (Exception ex)
+                {
+                    readEx = ex;
+                }
+                finally
+                {
+                    done.Set();
+                }
+            });
+            reader.IsBackground = true;
+            reader.Start();
+            Assert.True(usb.Waiting.Wait(1000), "reader did not enter USB wait");
+            cts.Cancel();
+            usb.Pulse();
+
+            Assert.True(done.Wait(1000), "cancelled TryRead did not unblock");
+            Assert.Null(readEx);
+            Assert.False(got);
+        }
+
+        [Fact]
+        public void Native_empty_reads_are_swallowed_until_a_frame_arrives()
+        {
+            var mux = new DeviceReadMux(1);
+            var usb = new FakeUsb { RemainingEmptyReads = 2 };
+            usb.Push(0, Frame(0x10, CanFrameKind.Rx));
+
+            Assert.True(Read(mux, usb, 0, 50, out var frame));
+            Assert.Equal(0x10u, frame.Id);
+            Assert.Equal(0, usb.RemainingEmptyReads);
+        }
+
+        [Fact]
+        public void Native_throw_propagates_from_TryRead()
+        {
+            var mux = new DeviceReadMux(1);
+            var thrown = new GsCanException("Failed to read CAN frame (native error 17).");
+            var usb = new FakeUsb { ThrowOnRead = thrown };
+
+            var ex = Assert.Throws<GsCanException>(() => Read(mux, usb, 0, 50, out _));
+            Assert.Same(thrown, ex);
+        }
+
+        [Fact]
         public void Foreign_frame_is_queued_for_the_other_channel()
         {
             var mux = new DeviceReadMux(2);
@@ -139,6 +197,10 @@ namespace GsCan.Tests
 
             public bool BlockUntilPulse { get; set; }
 
+            public int RemainingEmptyReads { get; set; }
+
+            public Exception? ThrowOnRead { get; set; }
+
             public ManualResetEventSlim Waiting { get; } = new ManualResetEventSlim(false);
 
             private bool _released;
@@ -163,8 +225,21 @@ namespace GsCan.Tests
 
             public bool Read(int timeoutMilliseconds, out CanFrame frame, out int channel)
             {
+                if (ThrowOnRead != null)
+                {
+                    throw ThrowOnRead;
+                }
+
                 lock (_gate)
                 {
+                    if (RemainingEmptyReads > 0)
+                    {
+                        RemainingEmptyReads--;
+                        frame = default;
+                        channel = -1;
+                        return false;
+                    }
+
                     if (_pending.Count == 0)
                     {
                         if (timeoutMilliseconds <= 0 || _released)

@@ -48,33 +48,17 @@ namespace GsCan.View.Session
             }
         }
 
-        internal const int MaxConsecutiveRetryableReadErrors = 3;
-
-        internal static bool IsChannelNotStarted(string? message)
-        {
-            return message == "Channel is not started.";
-        }
-
-        internal static bool IsRetryableNativeRead(string? message)
-        {
-            return message == "Failed to read CAN frame (native error 17)."
-                || message == "Failed to read CAN frame (native error 18).";
-        }
-
         private void Run()
         {
-            int consecutiveRetryable = 0;
             while (!_stop)
             {
                 try
                 {
                     if (!_device.TryRead(_channelIndex, 50, out var frame))
                     {
-                        consecutiveRetryable = 0;
                         continue;
                     }
 
-                    consecutiveRetryable = 0;
                     _accept(_channelIndex, frame);
                     while (!_stop && _device.TryRead(_channelIndex, 0, out frame))
                     {
@@ -86,25 +70,6 @@ namespace GsCan.View.Session
                     if (_stop)
                     {
                         break;
-                    }
-
-                    // Stop unblocks TryRead with this message. It is not unplug:
-                    // retry so a still-running channel survives another channel's Stop.
-                    if (IsChannelNotStarted(ex.Message))
-                    {
-                        consecutiveRetryable = 0;
-                        continue;
-                    }
-
-                    // Shared USB IN can return READ_RESULT/READ_SIZE once when
-                    // another channel Stops. A burst of them is unplug.
-                    if (IsRetryableNativeRead(ex.Message))
-                    {
-                        consecutiveRetryable++;
-                        if (consecutiveRetryable < MaxConsecutiveRetryableReadErrors)
-                        {
-                            continue;
-                        }
                     }
 
                     _onError(ex.Message);

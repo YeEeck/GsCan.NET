@@ -493,6 +493,8 @@ namespace GsCan.Tests
                         if (token.IsCancellationRequested
                             || ex.Message == "Channel is not started.")
                         {
+                            // In-flight Stop returns false; the next TryRead after
+                            // Stop still throws. That is not unplug.
                             break;
                         }
 

@@ -295,7 +295,7 @@ namespace GsCan.Tests
         }
 
         [Fact]
-        public void Stop_unblocks_blocked_TryRead_with_GsCanException()
+        public void Stop_unblocks_blocked_TryRead_with_false()
         {
             if (!TryOpenFirst(out var device))
             {
@@ -309,13 +309,14 @@ namespace GsCan.Tests
                 ch.Start(new ChannelOptions { Bitrate = 500000, Loopback = true });
                 try
                 {
+                    bool readOk = true;
                     Exception? readEx = null;
                     var readerDone = new ManualResetEventSlim(false);
                     var reader = new Thread(() =>
                     {
                         try
                         {
-                            ch.TryRead(out _, 5000);
+                            readOk = ch.TryRead(out _, 5000);
                         }
                         catch (Exception ex)
                         {
@@ -333,12 +334,34 @@ namespace GsCan.Tests
                     ch.Stop();
 
                     Assert.True(readerDone.Wait(2000), "blocked TryRead did not unblock after Stop");
-                    Assert.IsType<GsCanException>(readEx);
+                    Assert.Null(readEx);
+                    Assert.False(readOk);
                 }
                 finally
                 {
                     ch.Stop();
                 }
+            }
+        }
+
+        [Fact]
+        public void TryRead_after_Stop_throws_GsCanException()
+        {
+            if (!TryOpenFirst(out var device))
+            {
+                Console.WriteLine("SKIP TryRead after Stop: no gs_usb device present.");
+                return;
+            }
+
+            using (device!)
+            {
+                var ch = device.Channels[0];
+                ch.Start(new ChannelOptions { Bitrate = 500000, Loopback = true });
+                ch.Stop();
+                Assert.Throws<GsCanException>(() =>
+                {
+                    ch.TryRead(out _, 10);
+                });
             }
         }
 

@@ -965,11 +965,6 @@ namespace GsCan.View.Session
 
         private void OnPumpError(string message)
         {
-            if (ReadPump.IsChannelNotStarted(message))
-            {
-                return;
-            }
-
             void Fail()
             {
                 Close();

@@ -32,7 +32,7 @@ flowchart LR
 - **A small API to learn** — `Device`, `Channel`, `CanFrame`. No candle-specific names appear in the public surface.
 - **Classic CAN and CAN FD** — leave `DataBitrate` unset for classic CAN, or set it (1M / 2M / 4M) for FD, including 64-byte frames.
 - **Multiple Channels** — one Device with N Channels (two on FlintCAN-FD). The library demultiplexes the USB IN endpoint for you.
-- **Non-blocking send, blocking read** — `Send` returns immediately; `TryRead` waits up to a timeout and returns `false` instead of throwing.
+- **Non-blocking send, blocking read** — `Send` returns immediately; `TryRead` waits up to a timeout and returns `false` instead of throwing. `Stop` unblocks an in-flight `TryRead` the same way.
 - **One frame type** — Rx, Echo, and Error are values of `CanFrameKind` rather than separate classes. Overflow is a flag on the frame that reports it.
 - **Hardware timestamps** — exposed through `CanFrame.TimestampMicroseconds` when the adapter provides them.
 - **Listen-only, loopback, and one-shot** modes, set on `ChannelOptions`.
@@ -109,7 +109,7 @@ How to interpret the frames you read back, and which calls may run concurrently.
 | `Kind = Echo` | That `Send` completed **on the device**. It does not mean the frame won arbitration. On a given Channel, Echo frames arrive in the same order as the `Send` calls. |
 | `Overflow = true` | The device dropped received frames before this one. It is a flag — not an exception, and not a separate type. |
 | `Kind = Error` | A bus error frame, including bus-off. It arrives through the same read path as data. |
-| `TryRead` returns `false` | The read timed out. `Open`, `Start`, and a `Send` that fails immediately throw `GsCanException` instead. |
+| `TryRead` returns `false` | The read timed out, or `Stop` unblocked this call. `Open`, `Start`, a `Send` that fails immediately, and `TryRead` after Stop throw `GsCanException` instead. |
 
 After `Stop`, a `Send` that has not yet been echoed never will be. If you need to know that your frames were sent, drain the pending Echo frames before stopping.
 

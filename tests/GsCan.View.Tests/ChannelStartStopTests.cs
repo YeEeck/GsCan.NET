@@ -187,14 +187,93 @@ namespace GsCan.View.Tests
         }
 
         [Fact]
-        public void StopChannel_with_pumps_does_not_close_device_when_another_channel_read_is_cancelled()
+        public void Stop_unblocks_in_flight_TryRead_with_false()
+        {
+            var opened = OpenTwoChannels().Opened;
+            opened.Start(0, new ChannelOptions { Bitrate = 500_000 });
+
+            bool? got = null;
+            Exception? readEx = null;
+            var readerDone = new ManualResetEventSlim(false);
+            var reader = new Thread(() =>
+            {
+                try
+                {
+                    got = opened.TryRead(0, 5000, out _);
+                }
+                catch (Exception ex)
+                {
+                    readEx = ex;
+                }
+                finally
+                {
+                    readerDone.Set();
+                }
+            });
+            reader.IsBackground = true;
+            reader.Start();
+            Thread.Sleep(50);
+            opened.Stop(0);
+
+            Assert.True(readerDone.Wait(2000), "blocked TryRead did not unblock after Stop");
+            Assert.Null(readEx);
+            Assert.False(got);
+        }
+
+        [Fact]
+        public void TryRead_after_Stop_throws_channel_not_started()
+        {
+            var opened = OpenTwoChannels().Opened;
+            opened.Start(0, new ChannelOptions { Bitrate = 500_000 });
+            opened.Stop(0);
+
+            var ex = Assert.Throws<GsCanException>(() => opened.TryRead(0, 0, out _));
+            Assert.Equal("Channel is not started.", ex.Message);
+        }
+
+        [Fact]
+        public void Stop_on_one_channel_does_not_throw_on_peer_TryRead()
+        {
+            var opened = OpenTwoChannels().Opened;
+            opened.Start(0, new ChannelOptions { Bitrate = 500_000 });
+            opened.Start(1, new ChannelOptions { Bitrate = 250_000 });
+
+            bool? got = null;
+            Exception? readEx = null;
+            var readerDone = new ManualResetEventSlim(false);
+            var reader = new Thread(() =>
+            {
+                try
+                {
+                    got = opened.TryRead(0, 2000, out _);
+                }
+                catch (Exception ex)
+                {
+                    readEx = ex;
+                }
+                finally
+                {
+                    readerDone.Set();
+                }
+            });
+            reader.IsBackground = true;
+            reader.Start();
+            Thread.Sleep(50);
+            opened.Stop(1);
+            opened.Enqueue(0, new CanFrame(0x100, new byte[] { 0x01 }, CanFrameKind.Rx));
+
+            Assert.True(readerDone.Wait(2000), "ch0 TryRead did not complete after ch1 Stop");
+            Assert.Null(readEx);
+            Assert.True(got);
+        }
+
+        [Fact]
+        public void StopChannel_with_pumps_does_not_close_device_while_peer_still_running()
         {
             var info = new DeviceInfo(@"\\?\usb#a", 2);
             var port = new FakeGsCanPort();
             var session = new ViewSession(port, runBackgroundPumps: true);
             session.Open(info);
-            var opened = port.LastOpenedDevice!;
-            opened.SimulateDeviceWideReadCancel = true;
             try
             {
                 session.StartChannel(0);
@@ -209,64 +288,6 @@ namespace GsCan.View.Tests
                 Assert.True(session.Channels[1].IsRunning);
                 Assert.Equal(0, port.DisposeCallCount);
                 Assert.Null(session.LastError);
-            }
-            finally
-            {
-                session.Close();
-            }
-        }
-
-        [Fact]
-        public void StopChannel_with_pumps_does_not_close_device_when_peer_read_hits_native_error_17()
-        {
-            var info = new DeviceInfo(@"\\?\usb#a", 2);
-            var port = new FakeGsCanPort();
-            var session = new ViewSession(port, runBackgroundPumps: true);
-            session.Open(info);
-            var opened = port.LastOpenedDevice!;
-            opened.SimulateNativeReadGlitchOnStop = true;
-            try
-            {
-                session.StartChannel(0);
-                session.StartChannel(1);
-
-                session.StopChannel(0);
-                Thread.Sleep(250);
-
-                Assert.Equal(@"\\?\usb#a", session.OpenedPath);
-                Assert.Equal(2, session.Channels.Count);
-                Assert.False(session.Channels[0].IsRunning);
-                Assert.True(session.Channels[1].IsRunning);
-                Assert.Equal(0, port.DisposeCallCount);
-                Assert.Null(session.LastError);
-            }
-            finally
-            {
-                session.Close();
-            }
-        }
-
-        [Fact]
-        public void StopChannel_with_pumps_closes_device_when_peer_read_keeps_returning_native_error_17()
-        {
-            var info = new DeviceInfo(@"\\?\usb#a", 2);
-            var port = new FakeGsCanPort();
-            var session = new ViewSession(port, runBackgroundPumps: true);
-            session.Open(info);
-            var opened = port.LastOpenedDevice!;
-            opened.SimulatePersistentNativeReadErrorOnStop = true;
-            try
-            {
-                session.StartChannel(0);
-                session.StartChannel(1);
-
-                session.StopChannel(0);
-                Thread.Sleep(250);
-
-                Assert.Null(session.OpenedPath);
-                Assert.Empty(session.Channels);
-                Assert.Equal(1, port.DisposeCallCount);
-                Assert.Equal("Failed to read CAN frame (native error 17).", session.LastError);
             }
             finally
             {
