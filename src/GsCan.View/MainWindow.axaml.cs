@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Data;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -22,6 +23,9 @@ namespace GsCan.View
         private readonly ViewSession _session;
         private bool _latestStickToBottom = true;
         private bool _tracePinPosted;
+        private Point? _splitStart;
+        private double _splitTrace0;
+        private double _splitTx0;
 
         public MainWindow()
             : this(new ViewSession(new GsCanPort(), FileConfigStore.InLocalAppData()))
@@ -37,6 +41,11 @@ namespace GsCan.View
             LatestList.AddHandler(ScrollViewer.ScrollChangedEvent, OnLatestScrollChanged);
             _session.TraceDisplay.CollectionChanged += OnTraceChanged;
             _session.Latest.CollectionChanged += OnLatestChanged;
+            TraceTxSplitter.PointerPressed += OnTraceTxSplitterPointerPressed;
+            TraceTxGrid.PointerPressed += OnTraceTxGridPointerPressed;
+            TraceTxGrid.PointerMoved += OnTraceTxSplitterPointerMoved;
+            TraceTxGrid.PointerReleased += OnTraceTxSplitterPointerReleased;
+            TraceTxGrid.PointerCaptureLost += OnTraceTxSplitterPointerCaptureLost;
             _session.RefreshDevices();
         }
 
@@ -238,6 +247,88 @@ namespace GsCan.View
 
                 list.ScrollIntoView(current);
             }, DispatcherPriority.Background);
+        }
+
+        private void OnTraceTxGridPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (!ReferenceEquals(e.Source, TraceTxGrid))
+            {
+                return;
+            }
+
+            var y = e.GetPosition(TraceTxGrid).Y;
+            var top = TraceTxGrid.RowDefinitions[0].ActualHeight;
+            var bottom = top + TraceTxGrid.RowDefinitions[1].ActualHeight;
+            if (y < top - 3 || y > bottom + 3)
+            {
+                return;
+            }
+
+            OnTraceTxSplitterPointerPressed(sender, e);
+        }
+
+        private void OnTraceTxSplitterPointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            var properties = e.GetCurrentPoint(TraceTxSplitter).Properties;
+            if (properties.PointerUpdateKind != PointerUpdateKind.LeftButtonPressed
+                && !properties.IsLeftButtonPressed)
+            {
+                return;
+            }
+
+            _splitStart = e.GetPosition(TraceTxGrid);
+            _splitTrace0 = TraceTxGrid.RowDefinitions[0].ActualHeight;
+            _splitTx0 = TraceTxGrid.RowDefinitions[2].ActualHeight;
+            e.Pointer.Capture(TraceTxGrid);
+            e.PreventGestureRecognition();
+            e.Handled = true;
+        }
+
+        private void OnTraceTxSplitterPointerMoved(object? sender, PointerEventArgs e)
+        {
+            if (_splitStart == null || e.Pointer.Captured != TraceTxGrid)
+            {
+                return;
+            }
+
+            ApplyTraceTxSplit(e.GetPosition(TraceTxGrid).Y - _splitStart.Value.Y);
+        }
+
+        private void OnTraceTxSplitterPointerReleased(object? sender, PointerReleasedEventArgs e)
+        {
+            if (e.Pointer.Captured == TraceTxGrid)
+            {
+                e.Pointer.Capture(null);
+            }
+
+            _splitStart = null;
+        }
+
+        private void OnTraceTxSplitterPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+        {
+            _splitStart = null;
+        }
+
+        private void ApplyTraceTxSplit(double delta)
+        {
+            var trace = TraceTxGrid.RowDefinitions[0];
+            var tx = TraceTxGrid.RowDefinitions[2];
+            var total = _splitTrace0 + _splitTx0;
+            var minTrace = trace.MinHeight;
+            var minTx = tx.MinHeight;
+            var newTrace = _splitTrace0 + delta;
+            if (newTrace < minTrace)
+            {
+                newTrace = minTrace;
+            }
+
+            if (total - newTrace < minTx)
+            {
+                newTrace = total - minTx;
+            }
+
+            trace.Height = new GridLength(newTrace, GridUnitType.Star);
+            tx.Height = new GridLength(total - newTrace, GridUnitType.Star);
         }
     }
 }

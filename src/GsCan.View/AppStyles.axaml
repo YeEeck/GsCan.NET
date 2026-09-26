@@ -447,6 +447,7 @@
         <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
         <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
         <Setter Property="AllowAutoHide" Value="True" />
     </Style>
     <Style Selector="ScrollViewer.tx-scroll ScrollBar:vertical">
@@ -523,6 +524,8 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="Cursor" Value="Arrow" />
         <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
         <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Visible" />
     </Style>
@@ -546,16 +549,18 @@
         <Setter Property="Background" Value="#99F6E4" />
     </Style>
 
-    <Style Selector="GridSplitter.row">
-        <Setter Property="Background" Value="#E5EAF0" />
-        <Setter Property="MinHeight" Value="5" />
+    <Style Selector="Border.row-split">
+        <Setter Property="Background" Value="#F3F5F8" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
-        <Setter Property="ResizeDirection" Value="Rows" />
-        <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="SizeNorthSouth" />
+        <Setter Property="IsHitTestVisible" Value="True" />
     </Style>
-
-    <Style Selector="GridSplitter.row:pointerover">
-        <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+    <Style Selector="Rectangle.row-split-rule">
+        <Setter Property="Fill" Value="#D0D5DD" />
+    </Style>
+    <Style Selector="Border.row-split:pointerover Rectangle.row-split-rule">
+        <Setter Property="Fill" Value="#0F766E" />
     </Style>
 
     <Style Selector="Border.tx-row">

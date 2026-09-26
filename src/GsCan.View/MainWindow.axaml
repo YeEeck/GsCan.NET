@@ -18,7 +18,7 @@
         <local:KindBrushConverter x:Key="KindBrush" />
         <local:ChannelBrushConverter x:Key="ChannelBrush" />
     </Window.Resources>
-    <Grid RowDefinitions="Auto,Auto,*,5,168,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
         <Border Grid.Row="0" Classes="toolbar">
             <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                 <TextBlock Classes="section"
@@ -221,7 +221,22 @@
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="2" Classes="panel" Padding="14,10,14,8">
+        <Grid x:Name="TraceTxGrid"
+              Grid.Row="2"
+              Background="#F3F5F8"
+              ClipToBounds="True"
+              Cursor="SizeNorthSouth">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*" MinHeight="80" />
+                <RowDefinition Height="8" />
+                <RowDefinition Height="1*" MinHeight="100" />
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0"
+                    Classes="panel"
+                    Padding="14,10,14,8"
+                    BorderThickness="0"
+                    ClipToBounds="True"
+                    Cursor="Arrow">
             <DockPanel>
                 <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <TextBlock Classes="section"
@@ -341,6 +356,7 @@
                                                MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" Text="尚无帧。打开设备并启动通道后，收到的帧会出现在这里。" />
                                     <ListBox x:Name="TraceList"
                                              Classes="frame-grid"
+                                             MinHeight="0"
                                              ItemsSource="{Binding TraceDisplay}">
                                     <ListBox.ItemsPanel>
                                         <ItemsPanelTemplate>
@@ -428,6 +444,7 @@
                                            MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" Text="尚无帧。Latest 按键覆盖显示最新一帧。" />
                                 <ListBox x:Name="LatestList"
                                          Classes="frame-grid"
+                                         MinHeight="0"
                                          ItemsSource="{Binding Latest}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="session:LatestRow">
@@ -491,11 +508,14 @@
                     </Grid>
                 </Grid>
             </DockPanel>
-        </Border>
+            </Border>
 
-        <GridSplitter Grid.Row="3" Classes="row" />
-
-        <Border Grid.Row="4" Classes="panel" Padding="14,8">
+            <Border Grid.Row="2"
+                    Classes="panel"
+                    Padding="14,8"
+                    MinHeight="0"
+                    ClipToBounds="True"
+                    Cursor="Arrow">
             <DockPanel>
                 <Grid DockPanel.Dock="Top"
                       ColumnDefinitions="Auto,*,Auto"
@@ -635,9 +655,25 @@
                     </DockPanel>
                 </Border>
             </DockPanel>
-        </Border>
+            </Border>
 
-        <Border Grid.Row="5" Classes="status">
+            <Border x:Name="TraceTxSplitter"
+                    Grid.Row="1"
+                    Classes="row-split"
+                    Background="#F3F5F8"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Stretch"
+                    Cursor="SizeNorthSouth"
+                    IsHitTestVisible="True">
+                <Rectangle Classes="row-split-rule"
+                           Height="1"
+                           HorizontalAlignment="Stretch"
+                           VerticalAlignment="Center"
+                           IsHitTestVisible="False" />
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Classes="status">
             <DockPanel VerticalAlignment="Center">
                 <TextBlock DockPanel.Dock="Right"
                            Classes="error"
