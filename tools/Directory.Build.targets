@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    tools/ 下的程序共用同一份原生 DLL。GsCan 库自己的 CopyCandleApiNative
+    目标只往 GsCan 的输出目录复制，不会传给引用它的工程；因此这里统一补一次，
+    让 CanBench、CanProbe 等程序运行时能在 exe 旁找到 candle_api.dll。
+  -->
+  <PropertyGroup>
+    <GsCanNativeDll>$(MSBuildThisFileDirectory)..\src\GsCan\runtimes\win-x64\native\candle_api.dll</GsCanNativeDll>
+  </PropertyGroup>
+
+  <Target Name="CopyGsCanNativeDll" AfterTargets="Build" Condition="Exists('$(GsCanNativeDll)')">
+    <Copy SourceFiles="$(GsCanNativeDll)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyGsCanNativeDllToPublish" AfterTargets="Publish"
+          Condition="'$(PublishDir)' != '' and Exists('$(GsCanNativeDll)')">
+    <Copy SourceFiles="$(GsCanNativeDll)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

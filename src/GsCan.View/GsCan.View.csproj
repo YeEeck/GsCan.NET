@@ -23,6 +23,10 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="GsCan.View.Tests" />
+    <InternalsVisibleTo Include="CmdFileCheck" />
+    <InternalsVisibleTo Include="LiveHighlight" />
+    <InternalsVisibleTo Include="PwmTest" />
+    <InternalsVisibleTo Include="OrderTest" />
   </ItemGroup>
 
   <!-- ProjectReference does not import NuGet build/.targets; pull them in for DllImport. -->

@@ -17,6 +17,7 @@
         <local:DeviceLabelConverter x:Key="DeviceLabel" />
         <local:KindBrushConverter x:Key="KindBrush" />
         <local:ChannelBrushConverter x:Key="ChannelBrush" />
+        <local:IsSentConverter x:Key="IsSent" />
     </Window.Resources>
     <Grid RowDefinitions="Auto,Auto,*,Auto">
         <Border Grid.Row="0" Classes="toolbar">
@@ -337,13 +338,14 @@
                         <Border Classes="table">
                             <DockPanel>
                                 <Border Classes="table-header" DockPanel.Dock="Top">
-                                    <Grid ColumnDefinitions="96,52,70,96,210,40,*,16">
+                            <Grid ColumnDefinitions="96,52,70,96,210,40,64,*">
                                         <TextBlock Classes="col-header" Text="相对时间" />
                                         <TextBlock Grid.Column="1" Classes="col-header" Text="CH" />
                                         <TextBlock Grid.Column="2" Classes="col-header" Text="Kind" />
                                         <TextBlock Grid.Column="3" Classes="col-header" Text="ID" />
                                         <TextBlock Grid.Column="4" Classes="col-header" Text="标志" />
                                         <TextBlock Grid.Column="5" Classes="col-header" Text="长度" />
+                                <TextBlock Grid.Column="7" Classes="col-header" Text="配对" />
                                         <TextBlock Grid.Column="6" Classes="col-header" Text="数据" />
                                     </Grid>
                                 </Border>
@@ -365,7 +367,12 @@
                                     </ListBox.ItemsPanel>
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="session:FrameRowView">
-                                            <Grid ColumnDefinitions="96,52,70,96,210,40,*">
+                                            <Border Classes.sent="{Binding Highlight, Converter={StaticResource IsSent}}"
+                                                    Classes.paired="{Binding IsPaired}"
+                                                    CornerRadius="3"
+                                                    Padding="4,1"
+                                                    Margin="-4,0">
+                                            <Grid ColumnDefinitions="96,52,70,96,210,40,64,*">
                                                 <TextBlock Classes="mono"
                                                            Foreground="#475569"
                                                            Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
@@ -412,7 +419,15 @@
                                                            Text="{Binding DataHex}"
                                                            TextTrimming="CharacterEllipsis"
                                                            ToolTip.Tip="{Binding DataHex}" />
+                                                <TextBlock Grid.Column="7"
+                                                           Classes="mono pair-tag"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#B45309"
+                                                           FontWeight="SemiBold"
+                                                           Text="{Binding PairTag}"
+                                                           IsVisible="{Binding IsHighlighted}" />
                                             </Grid>
+                                            </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -424,15 +439,16 @@
                         <Border Classes="table">
                             <DockPanel>
                                 <Border Classes="table-header" DockPanel.Dock="Top">
-                                    <Grid ColumnDefinitions="96,52,70,52,96,210,40,*,16">
+                                    <Grid ColumnDefinitions="88,44,74,60,92,186,38,84,*">
                                         <TextBlock Classes="col-header" Text="相对时间" />
                                         <TextBlock Grid.Column="1" Classes="col-header" Text="CH" />
-                                        <TextBlock Grid.Column="2" Classes="col-header" Text="Kind" />
+                                        <TextBlock Grid.Column="2" Classes="col-header" Text="方向" ToolTip.Tip="发送 = 本机发出；接收 = 总线上的其它节点发来" />
                                         <TextBlock Grid.Column="3" Classes="col-header" Text="计数" />
                                         <TextBlock Grid.Column="4" Classes="col-header" Text="ID" />
                                         <TextBlock Grid.Column="5" Classes="col-header" Text="标志" />
                                         <TextBlock Grid.Column="6" Classes="col-header" Text="长度" />
-                                        <TextBlock Grid.Column="7" Classes="col-header" Text="数据" />
+                                        <TextBlock Grid.Column="7" Classes="col-header" Text="周期" ToolTip.Tip="用设备硬件时间戳实测" />
+                                        <TextBlock Grid.Column="8" Classes="col-header" Text="数据" />
                                     </Grid>
                                 </Border>
                                 <Grid>
@@ -448,7 +464,11 @@
                                          ItemsSource="{Binding Latest}">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="session:LatestRow">
-                                            <Grid ColumnDefinitions="96,52,70,52,96,210,40,*">
+                                            <Border Classes.paired="{Binding IsPaired}"
+                                                    CornerRadius="3"
+                                                    Padding="4,1"
+                                                    Margin="-4,0">
+                                            <Grid ColumnDefinitions="88,44,74,60,92,186,38,84,*,72">
                                                 <TextBlock Classes="mono"
                                                            Foreground="#475569"
                                                            Text="{Binding RelativeMilliseconds, StringFormat=\{0:0.###\}}" />
@@ -459,8 +479,9 @@
                                                 </Border>
                                                 <Border Grid.Column="2"
                                                         Classes="badge"
-                                                        Background="{Binding Kind, Converter={StaticResource KindBrush}}">
-                                                    <TextBlock Text="{Binding Kind}" />
+                                                        Background="{Binding Kind, Converter={StaticResource KindBrush}}"
+                                                        ToolTip.Tip="{Binding Kind}">
+                                                    <TextBlock Text="{Binding Direction}" />
                                                 </Border>
                                                 <TextBlock Grid.Column="3"
                                                            Classes="mono"
@@ -495,10 +516,21 @@
                                                            Text="{Binding Length}" />
                                                 <TextBlock Grid.Column="7"
                                                            Classes="mono"
+                                                           Text="{Binding PeriodText}" />
+                                                <TextBlock Grid.Column="8"
+                                                           Classes="mono"
                                                            Text="{Binding DataHex}"
                                                            TextTrimming="CharacterEllipsis"
                                                            ToolTip.Tip="{Binding DataHex}" />
+                                                <TextBlock Grid.Column="9"
+                                                           Classes="mono"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="#B45309"
+                                                           FontWeight="SemiBold"
+                                                           Text="{Binding PairTag}"
+                                                           IsVisible="{Binding IsHighlighted}" />
                                             </Grid>
+                                            </Border>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
                                 </ListBox>
@@ -518,58 +550,84 @@
                     Cursor="Arrow">
             <DockPanel>
                 <Grid DockPanel.Dock="Top"
-                      ColumnDefinitions="Auto,*,Auto"
+                      ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto"
                       Margin="0,0,0,6">
                     <TextBlock Classes="section"
                                Margin="0"
                                VerticalAlignment="Center"
-                               Text="TxSlot" />
-                    <TextBlock Grid.Column="1"
+                               Text="命令表" />
+                    <Button Grid.Column="1"
+                            Classes="compact"
+                            Margin="10,0,0,0"
+                            Content="导入"
+                            Click="OnImportTxSlotsClick"
+                            ToolTip.Tip="导入 .list 或 .csv（替换当前列表）" />
+                    <Button Grid.Column="2"
+                            Classes="compact"
+                            Margin="6,0,0,0"
+                            Content="导出"
+                            Click="OnExportTxSlotsClick"
+                            ToolTip.Tip="导出当前命令表为 .list 或 .csv" />
+                    <Button Grid.Column="3"
+                            Classes="compact danger"
+                            Margin="6,0,0,0"
+                            Content="清空"
+                            Click="OnClearTxSlotsClick"
+                            ToolTip.Tip="清空命令表，只留一行空白" />
+                    <TextBlock Grid.Column="5"
                                Classes="hint"
                                Margin="12,0,12,0"
                                VerticalAlignment="Center"
-                               Text="周期 0 = 发送一次；大于 0 且使能 = 周期发送。" />
-                    <Button Grid.Column="2"
-                            Classes="compact"
+                               Text="周期 0 = 发送一次；大于 0 且使能 = 周期发送。↑ ↓ 可调整顺序。" />
+                    <Button Grid.Column="4"
+                            Classes="compact seq"
+                            Margin="6,0,0,0"
+                            Content="{Binding SequentialButtonText}"
+                            Command="{Binding ToggleSequentialSend}"
+                            ToolTip.Tip="顺序模式：用单个定时器按列表顺序轮流发送（避免各行定时器互相挤）" />
+                    <Button Grid.Column="6"
+                            Classes="compact accent"
                             Content="添加"
                             Command="{Binding AddTxSlot}"
                             IsEnabled="{Binding CanAddTxSlot}"
-                            ToolTip.Tip="最多 16 行" />
+                            ToolTip.Tip="最多 256 行" />
                 </Grid>
                 <Border Classes="table">
                     <DockPanel>
                         <Border Classes="table-header"
                                 DockPanel.Dock="Top"
                                 Padding="10,7,12,7">
-                            <Grid ColumnDefinitions="28,64,100,200,64,*,76,52,72,32"
+                            <Grid ColumnDefinitions="46,2*,58,110,170,60,2.4*,80,64,72,52"
                                   ColumnSpacing="8">
                                 <TextBlock Classes="col-header"
                                            HorizontalAlignment="Center"
-                                           Text="#" />
-                                <TextBlock Grid.Column="1"
+                                           Text="↑↓" />
+                                <TextBlock Grid.Column="1" Classes="col-header" Text="备注 / 作用" />
+                                <TextBlock Grid.Column="2"
                                            Classes="col-header"
                                            HorizontalAlignment="Center"
                                            Text="CH" />
-                                <TextBlock Grid.Column="2" Classes="col-header" Text="ID" />
-                                <TextBlock Grid.Column="3" Classes="col-header" Text="标志" />
-                                <TextBlock Grid.Column="4"
+                                <TextBlock Grid.Column="3" Classes="col-header" Text="ID" />
+                                <TextBlock Grid.Column="4" Classes="col-header" Text="标志" />
+                                <TextBlock Grid.Column="5"
                                            Classes="col-header"
                                            HorizontalAlignment="Center"
                                            Text="DLC"
                                            ToolTip.Tip="数据长度（字节）" />
-                                <TextBlock Grid.Column="5" Classes="col-header" Text="数据" />
-                                <TextBlock Grid.Column="6"
+                                <TextBlock Grid.Column="6" Classes="col-header" Text="数据" />
+                                <TextBlock Grid.Column="7"
                                            Classes="col-header"
                                            Text="周期 ms"
                                            ToolTip.Tip="0 表示只发一次" />
-                                <TextBlock Grid.Column="7"
-                                           Classes="col-header"
-                                           HorizontalAlignment="Center"
-                                           Text="使能" />
                                 <TextBlock Grid.Column="8"
                                            Classes="col-header"
                                            HorizontalAlignment="Center"
+                                           Text="使能" />
+                                <TextBlock Grid.Column="9"
+                                           Classes="col-header"
+                                           HorizontalAlignment="Center"
                                            Text="发送" />
+                                <TextBlock Grid.Column="10" Classes="col-header" HorizontalAlignment="Center" Text="删" />
                             </Grid>
                         </Border>
                         <ScrollViewer Classes="tx-scroll">
@@ -577,21 +635,42 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="session:TxSlot">
                                         <Border Classes="tx-row">
-                                            <Grid ColumnDefinitions="28,64,100,200,64,*,76,52,72,32"
+                                            <Grid ColumnDefinitions="46,2*,58,110,170,60,2.4*,80,64,72,52"
                                                   ColumnSpacing="8">
-                                                <TextBlock Classes="mono"
-                                                           HorizontalAlignment="Center"
-                                                           VerticalAlignment="Center"
-                                                           Foreground="#94A3B8"
-                                                           Text="{Binding Index}" />
-                                                <ComboBox Grid.Column="1"
+                                                <StackPanel HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"
+                                                            Orientation="Horizontal"
+                                                            Spacing="1">
+                                                    <TextBlock Classes="mono"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="#94A3B8"
+                                                               MinWidth="14"
+                                                               Text="{Binding Index}" />
+                                                    <Button Classes="reorder"
+                                                            Content="▲"
+                                                            Command="{Binding MoveUp}"
+                                                            IsEnabled="{Binding CanMoveUp}"
+                                                            ToolTip.Tip="上移" />
+                                                    <Button Classes="reorder"
+                                                            Content="▼"
+                                                            Command="{Binding MoveDown}"
+                                                            IsEnabled="{Binding CanMoveDown}"
+                                                            ToolTip.Tip="下移" />
+                                                </StackPanel>
+                                                <TextBox Grid.Column="1"
+                                                         Classes="cell"
+                                                         PlaceholderText="写作用，可留空"
+                                                         Text="{Binding Name}"
+                                                         ToolTip.Tip="备注 / 作用，随 .list 的 szname、CSV 的「备注」列存取" />
+                                                <ComboBox Grid.Column="2"
                                                           Classes="cell"
                                                           ItemsSource="{Binding ChannelChoices}"
                                                           SelectedItem="{Binding Channel}" />
-                                                <TextBox Grid.Column="2"
+                                                <TextBox Grid.Column="3"
                                                          Classes="cell mono"
-                                                         Text="{Binding IdHex}" />
-                                                <StackPanel Grid.Column="3"
+                                                         Text="{Binding IdHex, UpdateSourceTrigger=LostFocus}"
+                                                         ToolTip.Tip="十六进制，可写 0x123 或 123" />
+                                                <StackPanel Grid.Column="4"
                                                             Orientation="Horizontal"
                                                             Spacing="6"
                                                             VerticalAlignment="Center">
@@ -613,26 +692,27 @@
                                                                   IsEnabled="{Binding Fd}"
                                                                   ToolTip.Tip="Bit Rate Switch" />
                                                 </StackPanel>
-                                                <ComboBox Grid.Column="4"
+                                                <ComboBox Grid.Column="5"
                                                           Classes="cell"
                                                           ItemsSource="{Binding LengthChoices}"
                                                           SelectedItem="{Binding Length}"
                                                           ToolTip.Tip="数据长度（字节）" />
-                                                <TextBox Grid.Column="5"
-                                                         Classes="cell mono"
-                                                         PlaceholderText="十六进制字节"
-                                                         IsEnabled="{Binding !Remote}"
-                                                         Text="{Binding DataHex}" />
                                                 <TextBox Grid.Column="6"
                                                          Classes="cell mono"
-                                                         Text="{Binding PeriodMs, UpdateSourceTrigger=LostFocus}"
-                                                         ToolTip.Tip="0 表示只发一次" />
-                                                <ToggleButton Grid.Column="7"
+                                                         PlaceholderText="十六进制字节，如 00 44 7A"
+                                                         IsEnabled="{Binding !Remote}"
+                                                         Text="{Binding DataHex, UpdateSourceTrigger=LostFocus}"
+                                                         ToolTip.Tip="支持 00 44 7A / 00447A / 0x00447A" />
+                                                <TextBox Grid.Column="7"
+                                                         Classes="cell mono"
+                                                         Text="{Binding PeriodText, UpdateSourceTrigger=LostFocus}"
+                                                         ToolTip.Tip="毫秒，可写小数（如 2.5 = 200Hz）；0 表示只发一次" />
+                                                <ToggleButton Grid.Column="8"
                                                               Classes="switch"
                                                               IsChecked="{Binding Enabled}"
                                                               IsEnabled="{Binding CanEnable}"
                                                               ToolTip.Tip="{Binding EnableTip}" />
-                                                <Button Grid.Column="8"
+                                                <Button Grid.Column="9"
                                                         Classes="compact accent"
                                                         HorizontalAlignment="Stretch"
                                                         HorizontalContentAlignment="Center"
@@ -640,7 +720,7 @@
                                                         Content="发送"
                                                         IsEnabled="{Binding CanSend}"
                                                         ToolTip.Tip="{Binding SendUnavailableReason}" />
-                                                <Button Grid.Column="9"
+                                                <Button Grid.Column="10"
                                                         Classes="quiet"
                                                         Command="{Binding Remove}"
                                                         IsEnabled="{Binding CanRemove}"

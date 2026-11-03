@@ -40,6 +40,12 @@ namespace GsCan.View
             Closed += (_, _) => _session.Close();
             LatestList.AddHandler(ScrollViewer.ScrollChangedEvent, OnLatestScrollChanged);
             _session.TraceDisplay.CollectionChanged += OnTraceChanged;
+
+            // 发送/应答配对：收到配对结果后同步到 Latest，并驱动 Trace 行高亮
+            _session.HighlightRequested += (ts, ch, kind, tag) =>
+            {
+                _session.ApplyHighlightToLatest(ts, kind, tag);
+            };
             _session.Latest.CollectionChanged += OnLatestChanged;
             TraceTxSplitter.PointerPressed += OnTraceTxSplitterPointerPressed;
             TraceTxGrid.PointerPressed += OnTraceTxGridPointerPressed;
@@ -163,6 +169,173 @@ namespace GsCan.View
             }
 
             _session.SaveLog(path);
+        }
+
+        /// <summary>在底部状态栏显示一条临时提示（复用 LastError 那一行）。</summary>
+        private void ShowNotice(string message)
+        {
+            _session.ShowNotice(message);
+        }
+
+private async void OnClearTxSlotsClick(object? sender, RoutedEventArgs e)
+        {
+            // 有内容才要确认，避免误点清掉一整张表
+            if (_session.TxSlots.Count > 1 || !string.IsNullOrEmpty(_session.TxSlots[0].Name)
+                || _session.TxSlots[0].Id != 0)
+            {
+                var ok = await ShowConfirmAsync("清空命令表", "将删除全部命令（不可撤销），继续？");
+                if (!ok)
+                {
+                    return;
+                }
+            }
+
+            _session.ClearTxSlots();
+            ShowNotice("命令表已清空。");
+        }
+
+        private async Task<bool> ShowConfirmAsync(string title, string message)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 380,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+            };
+
+            var result = false;
+            var yes = new Button { Content = "确定清空", Width = 96 };
+            var no = new Button { Content = "取消", Width = 80 };
+            yes.Click += (_, _) => { result = true; dialog.Close(); };
+            no.Click += (_, _) => { result = false; dialog.Close(); };
+
+            dialog.Content = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Spacing = 16,
+                Children =
+                {
+                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children = { no, yes },
+                    },
+                },
+            };
+
+            await dialog.ShowDialog(this);
+            return result;
+        }
+
+        private async void OnImportTxSlotsClick(object? sender, RoutedEventArgs e)
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "导入命令表",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("命令表")
+                    {
+                        Patterns = new[] { "*.list", "*.csv" }
+                    },
+                    new FilePickerFileType("命令帧表 (*.list)")
+                    {
+                        Patterns = new[] { "*.list" }
+                    },
+                    new FilePickerFileType("CSV (*.csv)")
+                    {
+                        Patterns = new[] { "*.csv" }
+                    }
+                }
+            });
+
+            if (files == null || files.Count == 0)
+            {
+                return;
+            }
+
+            var path = files[0].TryGetLocalPath();
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            try
+            {
+                var entries = path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+                    ? CommandFile.LoadCsv(path)
+                    : CommandFile.LoadList(path);
+
+                if (entries.Count == 0)
+                {
+                    ShowNotice("文件里没有可导入的命令。");
+                    return;
+                }
+
+                var count = _session.ImportCommands(entries);
+                ShowNotice($"已导入 {count} 条：{System.IO.Path.GetFileName(path)}");
+            }
+            catch (Exception ex)
+            {
+                ShowNotice("导入失败：" + ex.Message);
+            }
+        }
+
+        private async void OnExportTxSlotsClick(object? sender, RoutedEventArgs e)
+        {
+            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "导出命令表",
+                SuggestedFileName = "commands.list",
+                DefaultExtension = "list",
+                FileTypeChoices = new[]
+                {
+                    new FilePickerFileType("命令帧表 (*.list)")
+                    {
+                        Patterns = new[] { "*.list" }
+                    },
+                    new FilePickerFileType("CSV (*.csv)")
+                    {
+                        Patterns = new[] { "*.csv" }
+                    }
+                }
+            });
+
+            if (file == null)
+            {
+                return;
+            }
+
+            var path = file.TryGetLocalPath();
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            try
+            {
+                var entries = _session.ExportCommands();
+                if (path.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    CommandFile.SaveCsv(path, entries);
+                }
+                else
+                {
+                    CommandFile.SaveList(path, entries);
+                }
+
+                ShowNotice($"已导出 {entries.Count} 条：{System.IO.Path.GetFileName(path)}");
+            }
+            catch (Exception ex)
+            {
+                ShowNotice("导出失败：" + ex.Message);
+            }
         }
 
         private void OnLatestScrollChanged(object? sender, ScrollChangedEventArgs e)

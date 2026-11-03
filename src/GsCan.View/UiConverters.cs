@@ -49,4 +49,19 @@ namespace GsCan.View
             throw new NotSupportedException();
         }
     }
+
+    /// <summary>把 RowHighlight 转成「是不是我发出去的那一帧」，供样式类选择器用。</summary>
+    public sealed class IsSentConverter : IValueConverter
+    {
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            return value is GsCan.View.Session.RowHighlight kind
+                && kind == GsCan.View.Session.RowHighlight.Sent;
+        }
+
+        public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException();
+        }
+    }
 }

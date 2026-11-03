@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!--
+      工具都固定输出到 bin\<Configuration>\<TFM>\<RID>。
+      没有这一行，从解决方案（Platform=x64）构建时会多出一层 bin\x64\，
+      而单独 dotnet build 又落在 bin\Release\，文档里的路径就不可靠了。
+    -->
+    <AppendPlatformToOutputPath>false</AppendPlatformToOutputPath>
+  </PropertyGroup>
+</Project>
