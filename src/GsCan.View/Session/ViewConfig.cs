@@ -63,6 +63,9 @@ namespace GsCan.View.Session
 
     public sealed class TxSlotConfig
     {
+        /// <summary>备注 / 作用。旧配置文件没有这一项，反序列化后为空串。</summary>
+        public string Name { get; set; } = string.Empty;
+
         public int Channel { get; set; }
 
         public uint Id { get; set; }
@@ -79,7 +82,7 @@ namespace GsCan.View.Session
 
         public string DataHex { get; set; } = string.Empty;
 
-        public int PeriodMs { get; set; }
+        public double PeriodMs { get; set; }
 
         public bool Enabled { get; set; }
     }

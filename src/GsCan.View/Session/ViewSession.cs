@@ -19,6 +19,10 @@ namespace GsCan.View.Session
         private readonly FrameIngest _ingest;
         private readonly SynchronizationContext? _ui;
         private readonly TxScheduler _scheduler;
+        private readonly TxSequenceScheduler _sequence;
+
+        /// <summary>是否使用「顺序发送」模式（单定时器轮流发所有已使能的命令）。</summary>
+        private bool _sequentialMode;
         private readonly List<ChannelConfig> _heldChannels = new List<ChannelConfig>();
         private readonly List<bool> _heldEnabled = new List<bool>();
         private IOpenedDevice? _opened;
@@ -72,6 +76,7 @@ namespace GsCan.View.Session
                 }
             };
             _scheduler = new TxScheduler(_clock, CyclicSend);
+            _sequence = new TxSequenceScheduler(_clock);
             TxSlots = new ObservableCollection<TxSlot>();
             AppendSlot();
             Trace.CollectionChanged += (_, _) =>
@@ -282,6 +287,26 @@ namespace GsCan.View.Session
         public bool CanRemoveTxSlot => TxSlots.Count > 1;
 
         public SessionStatus Status => _ingest.Status;
+
+        /// <summary>发送/应答配对器，供界面高亮与规则设置。</summary>
+        public SendPairTracker PairTracker => _ingest.PairTracker;
+
+        /// <summary>把高亮同步到 Latest 表。</summary>
+        public void ApplyHighlightToLatest(uint timestampUs, RowHighlight kind, string tag)
+            => _ingest.ApplyHighlightToLatest(timestampUs, kind, tag);
+
+        /// <summary>清除所有高亮。</summary>
+        public void ClearHighlights()
+        {
+            _ingest.ClearHighlights();
+        }
+
+        /// <summary>配对成功时触发（时间戳, 通道, 高亮性质, 角标文字）。</summary>
+        public event Action<uint, int, RowHighlight, string>? HighlightRequested
+        {
+            add => _ingest.HighlightRequested += value;
+            remove => _ingest.HighlightRequested -= value;
+        }
 
         public bool Paused
         {
@@ -523,6 +548,12 @@ namespace GsCan.View.Session
             _ingest.Clear();
         }
 
+        /// <summary>在状态栏显示一条临时提示。导入导出这类结果用它反馈。</summary>
+        public void ShowNotice(string message)
+        {
+            LastError = string.IsNullOrWhiteSpace(message) ? null : message;
+        }
+
         public void SaveLog(string path)
         {
             new TraceLogWriter().Write(path, Trace);
@@ -565,8 +596,213 @@ namespace GsCan.View.Session
             Persist();
         }
 
+        private void MoveTxSlotByDelta(TxSlot slot, int delta) => MoveTxSlot(slot, delta);
+
+        /// <summary>把某行上移一位。首行不动。</summary>
+        public bool MoveTxSlotUp(TxSlot slot) => MoveTxSlot(slot, -1);
+
+        /// <summary>把某行下移一位。末行不动。</summary>
+        public bool MoveTxSlotDown(TxSlot slot) => MoveTxSlot(slot, +1);
+
+        private bool MoveTxSlot(TxSlot slot, int delta)
+        {
+            if (slot == null || delta == 0)
+            {
+                return false;
+            }
+
+            int from = TxSlots.IndexOf(slot);
+            int to = from + delta;
+            if (from < 0 || to < 0 || to >= TxSlots.Count)
+            {
+                return false;
+            }
+
+            // 移动前先停掉这一行和目标的周期发送，否则索引变了会发错行
+            _scheduler.Stop(slot.Index);
+            _scheduler.Stop(to);
+            slot.Enabled = false;
+
+            TxSlots.RemoveAt(from);
+            TxSlots.Insert(to, slot);
+
+            // _heldEnabled 跟着同步
+            if (from < _heldEnabled.Count)
+            {
+                bool held = _heldEnabled[from];
+                _heldEnabled.RemoveAt(from);
+                _heldEnabled.Insert(Math.Min(to, _heldEnabled.Count), held);
+            }
+
+            ReindexSlots();
+            RefreshSlotListFlags();
+            Persist();
+            return true;
+        }
+
+        /// <summary>清空命令表，只保留一行空白。</summary>
+        public void ClearTxSlots()
+        {
+            _scheduler.StopAll();
+            foreach (var slot in TxSlots)
+            {
+                slot.PropertyChanged -= OnTxSlotPropertyChanged;
+            }
+
+            TxSlots.Clear();
+            _heldEnabled.Clear();
+
+            var fresh = AppendSlot();
+            fresh.Name = string.Empty;
+            fresh.Id = 0;
+            fresh.Extended = true;
+            fresh.Fd = false;
+            fresh.BitRateSwitch = false;
+            fresh.Remote = false;
+            fresh.Length = 0;
+            fresh.PeriodMs = 0;
+            fresh.Enabled = false;
+            fresh.Channel = 0;
+            _heldEnabled[fresh.Index] = false;
+
+            RefreshSlotListFlags();
+            Persist();
+        }
+
+
+        // --------------------------------------------------- 顺序发送
+
+        /// <summary>当前是否顺序发送中。</summary>
+        public bool IsSequentialSending => _sequence.IsRunning;
+
+        /// <summary>
+        /// 开始顺序发送：把所有「已使能且周期 &gt; 0」的命令按列表顺序排成序列，
+        /// 用单个定时器轮流发，每步间隔取该条命令自己的周期。
+        /// </summary>
+        public int StartSequentialSend()
+        {
+            if (_opened == null)
+            {
+                LastError = "未打开 Device";
+                return 0;
+            }
+
+            var steps = BuildSequenceSteps();
+            if (steps.Count == 0)
+            {
+                LastError = "没有已使能且周期大于 0 的命令";
+                return 0;
+            }
+
+            // 顺序模式下，两个调度器不能同时跑
+            _scheduler.StopAll();
+            _sequence.SetSteps(steps);
+            _sequence.Start();
+
+            _sequentialMode = true;
+            Raise(nameof(IsSequentialSending));
+            Raise(nameof(SendModeText));
+            return steps.Count;
+        }
+
+        public void StopSequentialSend()
+        {
+            _sequence.Reset();
+            _sequentialMode = false;
+            Raise(nameof(IsSequentialSending));
+            Raise(nameof(SendModeText));
+        }
+
+        /// <summary>状态栏用的模式文字。</summary>
+        public string SendModeText => _sequentialMode ? "顺序" : "并行";
+
+        /// <summary>工具条按钮上的文字。</summary>
+        public string SequentialButtonText => _sequentialMode ? "■ 停止顺序" : "▶ 顺序发送";
+
+        /// <summary>切换顺序/并行发送。由工具条按钮绑定。</summary>
+        public void ToggleSequentialSend()
+        {
+            if (_sequentialMode)
+            {
+                StopSequentialSend();
+                LastError = "已退出顺序发送";
+                return;
+            }
+
+            int n = StartSequentialSend();
+            if (n > 0)
+            {
+                LastError = $"顺序发送：{n} 条命令轮流发送";
+            }
+        }
+
+        /// <summary>
+        /// 按当前命令表重建序列步骤。
+        /// 顺序发送运行期间改动命令表（改周期/开关使能）会自动重建，不用手动重启。
+        /// </summary>
+        private void RebuildSequenceIfRunning()
+        {
+            if (!_sequence.IsRunning)
+            {
+                return;
+            }
+
+            var steps = BuildSequenceSteps();
+            if (steps.Count == 0)
+            {
+                StopSequentialSend();
+                LastError = "序列中没有可用命令，已停止顺序发送";
+                return;
+            }
+
+            _sequence.SetSteps(steps);
+        }
+
+        private List<TxSequenceScheduler.Step> BuildSequenceSteps()
+        {
+            var steps = new List<TxSequenceScheduler.Step>();
+            foreach (var slot in TxSlots)
+            {
+                if (!slot.Enabled || slot.PeriodMs <= 0)
+                {
+                    continue;
+                }
+
+                if (!CanSendOn(slot.Channel))
+                {
+                    continue;
+                }
+
+                var captured = slot;
+                steps.Add(new TxSequenceScheduler.Step(
+                    captured.Index,
+                    captured.PeriodMs,
+                    () => TrySendSlotFromSequence(captured.Index)));
+            }
+
+            return steps;
+        }
+
+        /// <summary>顺序发送里的单帧发送：失败只记录，不中断整个序列。</summary>
+        private void TrySendSlotFromSequence(int slotIndex)
+        {
+            if (TrySendSlot(slotIndex, out var error, out _))
+            {
+                return;
+            }
+
+            if (error != null)
+            {
+                LastError = error;
+            }
+        }
         public void SendOnce(int slotIndex)
         {
+            // 手动点「发送」才算新的一轮：清掉上一轮高亮，
+            // 屏幕上永远只显示「最近这一次发送 + 它的应答」。
+            // 周期发送走 CyclicSend，不经过这里，所以不会每 tick 闪一次。
+            _ingest.ResetHighlightsForNewSend();
+
             if (!TrySendSlot(slotIndex, out var error, out var stopCyclic))
             {
                 if (error != null)
@@ -638,6 +874,14 @@ namespace GsCan.View.Session
             try
             {
                 opened.Send(slot.Channel, frame);
+
+                // 登记待配对请求：随后的 Rx 帧只要 (通道, ID) 一致且在窗口内就算应答。
+                // 时间基准取「最近一帧的时间戳」，与收帧同尺度；还没收到过帧时用 0，
+                // 此时窗口按绝对时间自然推进，不影响后续配对。
+                _ingest.PairTracker.Begin(
+                    new SendPairRequest(slotIndex, slot.Channel, slot.Id, slot.Extended, slot.Name ?? string.Empty),
+                    _ingest.LastFrameTimestampUs);
+
                 return true;
             }
             catch (GsCanException ex)
@@ -729,6 +973,14 @@ namespace GsCan.View.Session
 
         private void SyncCyclic(TxSlot slot)
         {
+            // 顺序模式：由单定时器统一发号，不能再起每行独立的定时器
+            if (_sequentialMode)
+            {
+                _scheduler.Stop(slot.Index);
+                RebuildSequenceIfRunning();
+                return;
+            }
+
             if (slot.Enabled && slot.PeriodMs > 0 && CanSendOn(slot.Channel))
             {
                 _scheduler.Start(slot.Index, slot.PeriodMs);
@@ -1124,13 +1376,95 @@ namespace GsCan.View.Session
 
         private TxSlot AppendSlot()
         {
-            var slot = new TxSlot(TxSlots.Count, SendOnce, RemoveTxSlot);
+            var slot = new TxSlot(TxSlots.Count, SendOnce, RemoveTxSlot, MoveTxSlotByDelta);
             slot.ChannelChoices = _channelChoices;
             slot.PropertyChanged += OnTxSlotPropertyChanged;
             TxSlots.Add(slot);
             _heldEnabled.Add(false);
             RefreshSlotListFlags();
             return slot;
+        }
+
+        // ------------------------------------------------------- 命令表导入导出
+
+        /// <summary>
+        /// 用文件内容替换当前命令表。周期发送会先全部停掉，导入后的行都是未使能状态。
+        /// 返回导入条数。
+        /// </summary>
+        public int ImportCommands(IReadOnlyList<CommandFile.Entry> entries)
+        {
+            if (entries == null)
+            {
+                throw new ArgumentNullException(nameof(entries));
+            }
+
+            var configs = new List<TxSlotConfig>(entries.Count);
+            for (int i = 0; i < entries.Count; i++)
+            {
+                var e = entries[i];
+                configs.Add(new TxSlotConfig
+                {
+                    Name = e.Name ?? string.Empty,
+                    Channel = e.Channel,
+                    Id = e.Id,
+                    Extended = e.Extended,
+                    Remote = e.Remote,
+                    Fd = false,
+                    BitRateSwitch = false,
+                    Length = e.Length,
+                    DataHex = FormatHexBytes(e.Data),
+                    PeriodMs = e.PeriodMs,
+                    Enabled = false,
+                });
+            }
+
+            RestoreTxSlots(configs);
+            Persist();
+            return entries.Count;
+        }
+
+        /// <summary>把当前命令表导出成可写文件的形式。</summary>
+        public List<CommandFile.Entry> ExportCommands()
+        {
+            var list = new List<CommandFile.Entry>(TxSlots.Count);
+            for (int i = 0; i < TxSlots.Count; i++)
+            {
+                var slot = TxSlots[i];
+                list.Add(new CommandFile.Entry
+                {
+                    Name = slot.Name ?? string.Empty,
+                    Channel = slot.Channel,
+                    Id = slot.Id,
+                    Extended = slot.Extended,
+                    Remote = slot.Remote,
+                    Data = (byte[])slot.Data.Clone(),
+                    PeriodMs = slot.PeriodMs,
+                    Enabled = slot.Enabled,
+                });
+            }
+
+            return list;
+        }
+
+        private static string FormatHexBytes(byte[] data)
+        {
+            if (data == null || data.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            var sb = new System.Text.StringBuilder(data.Length * 3 - 1);
+            for (int i = 0; i < data.Length; i++)
+            {
+                if (i > 0)
+                {
+                    sb.Append(' ');
+                }
+
+                sb.Append(data[i].ToString("X2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+
+            return sb.ToString();
         }
 
         private void ReindexSlots()
@@ -1155,6 +1489,8 @@ namespace GsCan.View.Session
             foreach (var slot in TxSlots)
             {
                 slot.CanRemove = canRemove;
+                slot.CanMoveUp = slot.Index > 0;
+                slot.CanMoveDown = slot.Index < TxSlots.Count - 1;
             }
 
             Raise(nameof(CanAddTxSlot));
@@ -1201,6 +1537,7 @@ namespace GsCan.View.Session
 
         private void ApplyTxSlotConfig(TxSlot slot, TxSlotConfig saved)
         {
+            slot.Name = saved.Name ?? string.Empty;
             slot.Channel = saved.Channel;
             slot.Id = saved.Id;
             slot.Extended = saved.Extended;
@@ -1239,7 +1576,8 @@ namespace GsCan.View.Session
 
         private static bool IsDefaultTxSlot(TxSlotConfig saved)
         {
-            return saved.Channel == 0
+            return string.IsNullOrEmpty(saved.Name)
+                && saved.Channel == 0
                 && saved.Id == 0
                 && !saved.Extended
                 && !saved.Remote
@@ -1338,6 +1676,7 @@ namespace GsCan.View.Session
 
                 list.Add(new TxSlotConfig
                 {
+                    Name = slot.Name ?? string.Empty,
                     Channel = slot.Channel,
                     Id = slot.Id,
                     Extended = slot.Extended,

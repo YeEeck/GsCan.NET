@@ -428,13 +428,13 @@
             </ControlTemplate>
         </Setter>
     </Style>
-    <Style Selector="Button.quiet:pointerover">
+    <Style Selector="Button.quiet:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="#FEE2E2" />
-        <Setter Property="Foreground" Value="#B91C1C" />
+        <Setter Property="CornerRadius" Value="4" />
     </Style>
-    <Style Selector="Button.quiet:pressed">
+    <Style Selector="Button.quiet:pressed /template/ ContentPresenter">
         <Setter Property="Background" Value="#FECACA" />
-        <Setter Property="Foreground" Value="#991B1B" />
+        <Setter Property="CornerRadius" Value="4" />
     </Style>
     <Style Selector="Button.quiet:disabled">
         <Setter Property="Background" Value="Transparent" />
@@ -762,4 +762,54 @@
     <Style Selector="Expander.more:expanded /template/ ToggleButton#ExpanderHeader /template/ Path#MoreChevron">
         <Setter Property="RenderTransform" Value="rotate(180deg)" />
     </Style>
-</Styles>
+
+    <!-- 发送 / 应答 成对高亮 -->
+    <Style Selector="Border.sent">
+        <Setter Property="Background" Value="#DBEAFE" />
+        <Setter Property="BorderBrush" Value="#3B82F6" />
+        <Setter Property="BorderThickness" Value="2,0,0,0" />
+    </Style>
+
+    <Style Selector="Border.paired">
+        <Setter Property="Background" Value="#FEF3C7" />
+        <Setter Property="BorderBrush" Value="#F59E0B" />
+        <Setter Property="BorderThickness" Value="2,0,0,0" />
+    </Style>
+
+    <Style Selector="TextBlock.pair-tag">
+        <Setter Property="FontSize" Value="11" />
+    </Style>
+    <!-- 行内上移 / 下移 -->
+    <Style Selector="Button.reorder">
+        <Setter Property="Width" Value="17" />
+        <Setter Property="Height" Value="17" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="9" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="#E2E8F0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="#94A3B8" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="CornerRadius" Value="2" />
+    </Style>
+
+    <Style Selector="Button.reorder:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#E2E8F0" />
+        <Setter Property="TextBlock.Foreground" Value="#1D4ED8" />
+    </Style>
+
+    <Style Selector="Button.reorder:disabled">
+        <Setter Property="Foreground" Value="#E2E8F0" />
+    </Style>
+
+    <!-- 危险操作（清空） -->
+    <Style Selector="Button.danger">
+        <Setter Property="Foreground" Value="#B91C1C" />
+        <Setter Property="BorderBrush" Value="#FCA5A5" />
+    </Style>
+
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="#FEF2F2" />
+    </Style></Styles>

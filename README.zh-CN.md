@@ -11,7 +11,7 @@ Windows 平台上的 .NET Standard 2.0 **[gs_usb](https://github.com/candle-usb/
 
 本仓库还包含 **GsCan View**：一个基于同一套公共 API 的轻量桌面查看器。GsCan.NET 指的只是这个库，既不是 CAN 分析仪，也不是上位机。
 
-[为什么需要它](#为什么需要它) · [功能](#功能) · [环境要求](#环境要求) · [安装](#安装) · [快速上手](#快速上手) · [语义约定](#语义约定) · [API](#api) · [GsCan View](#gscan-view) · [构建](#构建) · [仓库结构](#仓库结构) · [许可证](#许可证) · [贡献](#贡献)
+[为什么需要它](#为什么需要它) · [功能](#功能) · [环境要求](#环境要求) · [安装](#安装) · [快速上手](#快速上手) · [语义约定](#语义约定) · [API](#api) · [GsCan View](#gscan-view) · [工具](#工具) · [构建](#构建) · [仓库结构](#仓库结构) · [许可证](#许可证) · [贡献](#贡献)
 
 ## 为什么需要它
 
@@ -163,6 +163,18 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-view.ps1
 
 产物位于 `artifacts/GsCan.View-win-x64.zip`，解压后运行 `GsCan.View.exe` 即可。按 LGPL 的规定，exe 旁边那份 `candle_api.dll` 可以自行替换。
 
+## 工具
+
+`tools/` 放基于同一套公共 API 的实机配套程序：
+
+- **CanBench** —— WinForms 命令台：`.list`/CSV 命令表导入导出、逐条备注、单次或周期发送，Trace + Latest 监视与 ID 过滤。
+- **CanBenchLive** —— 控制台收发冒烟。
+- **CanBenchTest** —— 离屏自检：`.list`/CSV 格式、Latest 聚合、ID 过滤（不需要适配器）。
+- **CanProbe** —— 刻意留在封装之下的裸 `candle_api` 探针，用来区分是 DLL 还是封装的问题。
+- **CanFrame.ps1** —— 以某块板协议为例的帧拼/解脚本。
+
+构建与运行见 [`tools/README.md`](tools/README.md)。
+
 ## 构建
 
 ```bash
@@ -186,6 +198,7 @@ powershell -ExecutionPolicy Bypass -File native/candle-api/build.ps1
 src/GsCan/            GsCan 库（netstandard2.0）
 src/GsCan.View/       GsCan View（net10.0、Avalonia、win-x64）
 tests/                xUnit 测试（库 + 查看器会话）
+tools/                实机配套工具（不随 NuGet 包发布）
 native/candle-api/    引入的 Candle Windows API 源码（LGPL）
 licenses/             GPL-3.0 / LGPL-3.0 许可证文本
 CONTEXT.md            术语表 —— 提 issue 与 PR 时请使用其中的名称

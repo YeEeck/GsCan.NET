@@ -11,7 +11,7 @@ A .NET Standard 2.0 host library for [gs_usb](https://github.com/candle-usb/cand
 
 This repository also contains **GsCan View**, a lightweight desktop viewer built on the same public API. GsCan.NET itself is the library — not a CAN analyzer, and not a GUI.
 
-[Why](#why) · [Features](#features) · [Requirements](#requirements) · [Install](#install) · [Quick start](#quick-start) · [Semantics](#semantics) · [API](#api) · [GsCan View](#gscan-view) · [Building](#building) · [Repository layout](#repository-layout) · [License](#license) · [Contributing](#contributing)
+[Why](#why) · [Features](#features) · [Requirements](#requirements) · [Install](#install) · [Quick start](#quick-start) · [Semantics](#semantics) · [API](#api) · [GsCan View](#gscan-view) · [Tools](#tools) · [Building](#building) · [Repository layout](#repository-layout) · [License](#license) · [Contributing](#contributing)
 
 ## Why
 
@@ -163,6 +163,18 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-view.ps1
 
 The result is `artifacts/GsCan.View-win-x64.zip`. Unzip it and run `GsCan.View.exe`. As the LGPL permits, you may replace the `candle_api.dll` next to the executable.
 
+## Tools
+
+`tools/` holds hardware-side companion programs built on the same public API:
+
+- **CanBench** — a WinForms command console: import and export `.list`/CSV command tables, keep a note per command, send rows once or cyclically, and watch Trace plus Latest with an ID filter.
+- **CanBenchLive** — a console TX/RX smoke test.
+- **CanBenchTest** — offscreen checks for the `.list`/CSV format, Latest aggregation, and ID filtering (no adapter needed).
+- **CanProbe** — a raw `candle_api` probe kept deliberately below the wrapper, for telling a DLL problem from a wrapper problem.
+- **CanFrame.ps1** — an example frame builder/decoder for one board protocol.
+
+See [`tools/README.md`](tools/README.md) for build and run commands.
+
 ## Building
 
 ```bash
@@ -186,6 +198,7 @@ The script installs `candle_api.dll` into `src/GsCan/runtimes/win-x64/native`, a
 src/GsCan/            GsCan library (netstandard2.0)
 src/GsCan.View/       GsCan View (net10.0, Avalonia, win-x64)
 tests/                xUnit tests (library + viewer session)
+tools/                companion programs on the public API (not shipped in the package)
 native/candle-api/    Candle Windows API sources, vendored (LGPL)
 licenses/             GPL-3.0 / LGPL-3.0 license texts
 CONTEXT.md            glossary — use these names in issues and PRs

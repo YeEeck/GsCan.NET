@@ -1,15 +1,27 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace GsCan.View.Session
 {
-    internal sealed class TxScheduler
+    /// <summary>
+    /// 周期发送调度器。
+    ///
+    /// 两个要点：
+    /// 1) 用「绝对时间累加」而不是「每次 sleep 一个周期」。后者会把每次的
+    ///    调度误差累积起来，2.5ms 目标跑一会儿就飘到 3ms 以上。
+    /// 2) 启动时把系统定时器精度提到 1ms（TimerResolution），否则 Windows
+    ///    默认 15.6ms 粒度会让 200Hz 变成笑话。
+    /// </summary>
+    internal sealed class TxScheduler : IDisposable
     {
         private readonly IClock _clock;
         private readonly Action<int> _send;
         private readonly Dictionary<int, Running> _running = new Dictionary<int, Running>();
         private readonly object _gate = new object();
+        private IDisposable? _resolution;
+        private int _resolutionUsers;
 
         public TxScheduler(IClock clock, Action<int> send)
         {
@@ -17,7 +29,7 @@ namespace GsCan.View.Session
             _send = send ?? throw new ArgumentNullException(nameof(send));
         }
 
-        public void Start(int slotIndex, int periodMs)
+        public void Start(int slotIndex, double periodMs)
         {
             lock (_gate)
             {
@@ -27,8 +39,11 @@ namespace GsCan.View.Session
                     return;
                 }
 
+                AcquireResolutionUnlocked();
+
                 var state = new Running(periodMs);
                 _running[slotIndex] = state;
+                state.NextDueMs = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 1000.0 + periodMs;
                 Arm(slotIndex, state);
             }
         }
@@ -56,6 +71,30 @@ namespace GsCan.View.Session
                 {
                     state.Cancel();
                 }
+
+                ReleaseResolutionUnlocked();
+            }
+        }
+
+        public void Dispose()
+        {
+            StopAll();
+        }
+
+        private void AcquireResolutionUnlocked()
+        {
+            if (_resolutionUsers++ == 0)
+            {
+                _resolution = TimerResolution.Acquire();
+            }
+        }
+
+        private void ReleaseResolutionUnlocked()
+        {
+            if (_resolutionUsers > 0 && --_resolutionUsers == 0)
+            {
+                _resolution?.Dispose();
+                _resolution = null;
             }
         }
 
@@ -65,12 +104,23 @@ namespace GsCan.View.Session
             {
                 _running.Remove(slotIndex);
                 state.Cancel();
+                ReleaseResolutionUnlocked();
             }
         }
 
+        private static double NowMs => Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency * 1000.0;
+
         private void Arm(int slotIndex, Running state)
         {
-            state.Handle = _clock.Schedule(TimeSpan.FromMilliseconds(state.PeriodMs), () => Tick(slotIndex, state));
+            // 按「距离下一个绝对时刻还有多久」来排下一次。
+            // 已经超时（例如线程被抢占）就立刻补发，并把基准往前推一个周期。
+            double delayMs = state.NextDueMs - NowMs;
+            if (delayMs < 0)
+            {
+                delayMs = 0;
+            }
+
+            state.Handle = _clock.Schedule(TimeSpan.FromMilliseconds(delayMs), () => Tick(slotIndex, state));
         }
 
         private void Tick(int slotIndex, Running state)
@@ -87,10 +137,22 @@ namespace GsCan.View.Session
 
             lock (_gate)
             {
-                if (IsCurrent(slotIndex, state))
+                if (!IsCurrent(slotIndex, state))
                 {
-                    Arm(slotIndex, state);
+                    return;
                 }
+
+                state.NextDueMs += state.PeriodMs;
+
+                // 落后超过两个周期就不追了，直接从当前时间重新起算，
+                // 避免积压后疯狂补发把总线打满。
+                double now = NowMs;
+                if (state.NextDueMs < now - state.PeriodMs * 2)
+                {
+                    state.NextDueMs = now + state.PeriodMs;
+                }
+
+                Arm(slotIndex, state);
             }
         }
 
@@ -101,12 +163,15 @@ namespace GsCan.View.Session
 
         private sealed class Running
         {
-            public Running(int periodMs)
+            public Running(double periodMs)
             {
                 PeriodMs = periodMs;
             }
 
-            public int PeriodMs { get; }
+            public double PeriodMs { get; }
+
+            /// <summary>下一次应该发送的绝对时刻（毫秒，Stopwatch 基准）。</summary>
+            public double NextDueMs { get; set; }
 
             public IDisposable? Handle { get; set; }
 
@@ -134,6 +199,11 @@ namespace GsCan.View.Session
             public TimerHandle(TimeSpan delay, Action callback)
             {
                 _callback = callback;
+                if (delay < TimeSpan.Zero)
+                {
+                    delay = TimeSpan.Zero;
+                }
+
                 _timer = new Timer(OnTick, null, delay, Timeout.InfiniteTimeSpan);
             }
 

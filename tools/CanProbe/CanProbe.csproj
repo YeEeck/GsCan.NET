@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- candle_api.dll 是 win-x64 原生库；用 net10.0 与 GsCan.View 一致 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>CanProbe</AssemblyName>
+    <RootNamespace>CanProbe</RootNamespace>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <!-- 这是刻意绕过 GsCan 封装的裸 P/Invoke 探针；原生 DLL 由
+       tools/Directory.Build.targets 从 src/GsCan/runtimes 复制到输出目录。 -->
+
+</Project>
